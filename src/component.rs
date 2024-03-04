@@ -1,2 +1,2 @@
-pub trait Component {   
+pub trait Component {
 }

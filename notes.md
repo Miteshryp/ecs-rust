@@ -14,3 +14,12 @@
 - This we could do by storing the typeid in a system and identifying whether the type supplied to us is the one which matches the one which that system wants.
 
 - We should be able to attach handlers to each system, hence we need a standard format definition (defined function arguments) for a handler function.
+
+- Handlers should be able to take in a component and perform an operation on it. The question remains how do we take and store this handler in a system struct?
+
+- We must also implement mechanisms to ensure the following:
+    1. One component instance can only belong to a single entity. For this, each component needs to keep track of the entity its currently attached to. This i think will have to be the responsibility of a system
+    The question is now which system, an entity system or a component system?
+    The aim of this mechanism is that if a component is removed from an entity, the component can be removed from memory. The converse however does not stand true, i.e. an empty or orphan entity can exist (one with no components) [Think if we should allow empty entities]
+
+    2. There should only exist one system to handle a single type of component or entity in the world. Hence the world class needs to make sure it only creates new systems for entities or components which are being created for the first time.
