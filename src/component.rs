@@ -1,2 +1,3 @@
+
 pub trait Component {
 }

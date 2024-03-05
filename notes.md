@@ -23,3 +23,22 @@
     The aim of this mechanism is that if a component is removed from an entity, the component can be removed from memory. The converse however does not stand true, i.e. an empty or orphan entity can exist (one with no components) [Think if we should allow empty entities]
 
     2. There should only exist one system to handle a single type of component or entity in the world. Hence the world class needs to make sure it only creates new systems for entities or components which are being created for the first time.
+
+
+
+
+# QUESTIONS
+
+### What does a System do?
+
+1. In laymens terms, we can say that system is something that updates a component. In more technical definition, a system is responsible for handling the state change event for a certain type of component.
+
+### Is this System responsible for keeping coordination between the component and the entity to which it is attached?
+
+This question has 2 potential solutions I can think of right now. The first is something where both the entity system and component system keep a record of the number of components attached to an entity, and both operate independently to update their own record.
+The flaw in this design is that I might actually not have the need to keep the record of components in the entity system (I don't even know for sure if there is really a need for an entity system)
+
+### Why do we need an Entity System?
+
+- To keep track of what components are attached to an entity.
+- 

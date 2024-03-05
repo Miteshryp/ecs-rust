@@ -7,9 +7,9 @@
 [] Determine the design of the project
     [x] Prepare a list of structures required in the ECS setting
         - World -> Stores all the objects created in the ECS environment 
-        - System -> Responsible for managing and updating a specific type of component (or entity?).
+        - ComponentHandler -> Responsible for managing and updating a specific type of component.
         - Component -> A data item which can be attached to an entity. This can then be updated by its appropriate system.
-        - ComponentManager -> creates, registers, handles events for a specific type of component defined by its TypeId.
+        - ComponentSystem -> creates, registers, handles events for a specific type of component defined by its TypeId.
         - Entity -> A wrapper for a collection of components.
         - EntityManager?
     [] Learn how they interact with one another
