@@ -41,4 +41,12 @@ The flaw in this design is that I might actually not have the need to keep the r
 ### Why do we need an Entity System?
 
 - To keep track of what components are attached to an entity.
-- 
+- Entity creation and management api
+    1. create entity
+    2. attach components to entities
+    
+- Catch entity events? (What exactly are events in this?)
+- For establishing a system where 2 components in a single entity can communicate with one another.
+    - Component communication should happen through events for an entity.
+    - Entity system should be responsible for launching as well as handling events.
+    - Events must be able to be launched by the Component Handler as well. (This is how a component will be able to initiate events)
