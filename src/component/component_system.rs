@@ -10,7 +10,7 @@ use std::{
 ///
 /// @NOTE: One entity can only have one instance of a type of component, so maybe component id is useless
 ///     For a component, we can simply use the entity id to identify the component attached to the entity
-pub struct ComponentSystem<Comp>
+pub(crate) struct ComponentSystem<Comp>
 where
     Comp: Component,
 {
@@ -38,7 +38,10 @@ where
     /// of the components in the system
     handler: Box<dyn ComponentHandler<Comp>>,
 }
-impl<Comp> System for ComponentSystem<Comp> where Comp: Component + 'static {
+impl<Comp> System for ComponentSystem<Comp>
+where
+    Comp: Component + 'static,
+{
     fn as_any(&self) -> &dyn Any {
         self as &dyn Any
     }
@@ -47,8 +50,6 @@ impl<Comp> System for ComponentSystem<Comp> where Comp: Component + 'static {
         self as &mut dyn Any
     }
 }
-
-
 
 /// Public functions of the ComponentSystem struct
 impl<Comp> ComponentSystem<Comp>
@@ -72,11 +73,12 @@ where
     /// Adds a component into the system based on the stack-build object passed
     /// as a parameter
     pub fn add_component_to_entity(&mut self, entity_id: EntityId, component: Comp) {
-        if self.entity_component_map.contains_key(&entity_id) {
-            // Entity already has the component attached to it.
-            // @TODO: Handle error
-            return;
-        }
+        // Entity should not already have the component attached to it.
+        assert!(
+            !self.entity_component_map.contains_key(&entity_id),
+            "Component addition to Entity [{}] failed: Duplicate components are not allowed in entities.", 
+            entity_id
+        );
 
         let component_index = self.components.len();
         self.components.push(component);
@@ -87,11 +89,13 @@ where
 
     /// Removes a component from the entity if the component was attached,
     pub fn remove_component_from_entity(&mut self, entity_id: EntityId) {
-        if !self.entity_component_map.contains_key(&entity_id) {
-            // Entity does not have the component attached to it, hence removal is not possible
-            // @TODO: Handle error
-            return;
-        }
+        // Entity must have a component of type [`Comp`] attached for removal to be possible
+        assert!(
+            self.entity_component_map.contains_key(&entity_id),
+            "Entity [{}] does not have a component of type \'{}\'",
+            entity_id,
+            Comp::get_name()
+        );
 
         let components_length = self.components.len();
         let component_index = self.entity_component_map.get(&entity_id).unwrap();
@@ -100,16 +104,22 @@ where
         self.components.swap_remove(*component_index);
         self.entity_ids.swap_remove(*component_index);
 
-        // Updating the lookup table with the replaced indexes
+        // Updating the lookup table for the replaced indexes if any element
+        // in the middle of the array was removed.
         if components_length - 1 != *component_index {
             self.entity_component_map
                 .insert(self.entity_ids[*component_index], *component_index)
                 .unwrap();
         }
+
+        // Removing removed entity_id from lookup
         self.entity_component_map.remove(&entity_id).unwrap();
     }
 
-    /// Returns 
+    ///
+    /// Used to find whether the component is attached to the `entity_id`
+    /// 
+    /// Returns
     ///     true if the component is present in the entity
     ///     false otherwise
     pub fn has_component(&self, entity_id: EntityId) -> bool {
@@ -117,28 +127,29 @@ where
     }
 
     pub fn borrow_component(&self, entity_id: EntityId) -> &Comp {
+        assert!(
+            self.entity_component_map.contains_key(&entity_id),
+            "Component does not exist in the entity id: {entity_id}"
+        );
 
-        // @TODO: Change all verification checks into asserts
-        if !self.entity_component_map.contains_key(&entity_id) {
-            panic!("Component does not exist in the entity id: {entity_id}")
-        }
-
-        // Getting the component from the array.
-        // @SAFETY: Component is guarenteed to be present in the vector since 
+        // @SAFETY: Component is guarenteed to be present in the vector since
         //      the entity id is present in the lookup table
-        self.components.get(*self.entity_component_map.get(&entity_id).unwrap()).unwrap()
+        self.components
+            .get(*self.entity_component_map.get(&entity_id).unwrap())
+            .unwrap()
     }
 
     pub fn borrow_component_mut(&mut self, entity_id: EntityId) -> &mut Comp {
-        // @TODO: Change all verification checks into asserts
-        if !self.entity_component_map.contains_key(&entity_id) {
-            panic!("Component does not exist in the entity id: {entity_id}")
-        }
+        assert!(
+            self.entity_component_map.contains_key(&entity_id),
+            "Component does not exist in the entity id: {entity_id}"
+        );
 
-        // Getting the component from the array.
-        // @SAFETY: Component is guarenteed to be present in the vector since 
+        // @SAFETY: Component is guarenteed to be present in the vector since
         //      the entity id is present in the lookup table
-        self.components.get_mut(*self.entity_component_map.get(&entity_id).unwrap()).unwrap()
+        self.components
+            .get_mut(*self.entity_component_map.get(&entity_id).unwrap())
+            .unwrap()
     }
 
     pub fn get_system_id(&self) -> TypeId {

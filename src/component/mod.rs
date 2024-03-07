@@ -3,7 +3,9 @@ pub mod component_system;
 use std::any::TypeId;
 
 pub trait Component {
-    fn get_name() -> String;
+    fn get_name() -> String where Self: Sized;
+    fn into_component_type(&self) -> &Self where Self: Sized;
+    fn into_component_type_mut(&mut self) -> &mut Self where Self: Sized;
 }
 
 
@@ -22,5 +24,10 @@ where
         Self: Sized,
     {
         TypeId::of::<Self>()
+    }
+
+    // What all do we need to update the component?
+    fn on_update() {
+
     }
 }

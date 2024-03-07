@@ -20,7 +20,7 @@ use super::EntityId;
 ///
 ///
 
-pub struct EntityManager {
+pub(crate) struct EntityManager {
     /// Store for Entities
     entities: Vec<Entity>,
 
@@ -33,6 +33,19 @@ pub struct EntityManager {
 
 /// Private member implementations
 impl EntityManager {
+    ///
+    /// Get the type id of component. Used to fetch the system
+    /// of the component based on it's type id
+    ///
+    fn get_component_type_id<C: Component + 'static>() -> TypeId {
+        TypeId::of::<C>()
+    }
+
+    fn generate_entity_id(&self) -> EntityId {
+        todo!()
+    }
+
+
     /// Checks if the component has been registered
     ///
     /// This validation must be performed before performing operations
@@ -41,10 +54,14 @@ impl EntityManager {
         self.component_systems.contains_key(&TypeId::of::<C>())
     }
 
-    fn get_component_type_id<C: Component + 'static>() -> TypeId {
-        TypeId::of::<C>()
-    }
 
+    ///
+    /// Returns a mutable reference of a [`ComponentSystem`] object
+    /// which is present in the [`EntityManager`] object
+    ///
+    /// WARNING: The component must be registered in the system, otherwise the
+    /// function will result in a panic
+    ///
     fn get_system_mut<C: Component + Sized + 'static>(&mut self) -> &mut ComponentSystem<C> {
         let system = self
             .component_systems
@@ -58,7 +75,14 @@ impl EntityManager {
         return system;
     }
 
-    fn get_system_ref<C: Component + Sized + 'static>(&self) -> &ComponentSystem<C> {
+    ///
+    /// Returns an immutable reference of a [`ComponentSystem`] object
+    /// which is present in the [`EntityManager`] object
+    ///
+    /// WARNING: The component must be registered in the system, otherwise the
+    /// function will result in a panic
+    ///
+    fn get_system<C: Component + Sized + 'static>(&self) -> &ComponentSystem<C> {
         let system = self
             .component_systems
             .get(&Self::get_component_type_id::<C>())
@@ -82,17 +106,41 @@ impl EntityManager {
         }
     }
 
+    /// 
     /// Creates an entity in contiguous block
+    /// 
+    /// Returns an EntityId, which must be used to perform
+    /// all further operations on the entity
+    /// 
     pub fn create_entity(&mut self) -> EntityId {
-        todo!()
+        let entity_id = self.generate_entity_id();
+        let entity_index = self.entities.len();
+
+        // Updating array and lookup
+        self.entities.push(Entity { id: entity_id });
+        self.entity_id_map.insert(entity_id, entity_index);
+
+        return entity_id;
     }
 
+    /// 
     /// Removes the entity and all components attached to it
+    /// 
+    /// The [`entity_id`](EntityId) passed in the parameter is 
+    /// invalidated and any future operations on the entity
+    /// will result in a panic
+    /// 
     pub fn remove_entity(&mut self, entity_id: EntityId) {
         todo!()
     }
 
-    /// Creates a component systems for handling the component
+    /// 
+    /// Registers a component type in the manager by creating a 
+    /// component systems for handling the component
+    /// 
+    /// Components of this type can be attached to generated entities
+    /// only after registering the component type in the manager.
+    /// 
     pub fn register_component<C: Component + 'static, Handler: ComponentHandler<C> + 'static>(
         &mut self,
     ) {
@@ -107,6 +155,12 @@ impl EntityManager {
             Box::new(ComponentSystem::<C>::new::<Handler>()),
         );
     }
+
+
+    pub fn update_entities(&mut self) {
+        // Run all event calls here
+    }
+
 
     ///
     /// Adds the given component type into the system
@@ -146,33 +200,37 @@ impl EntityManager {
     }
 
     ///
-    /// Returns true if the given component type is attached to 
-    /// the entity, false otherwise
-    /// 
-    /// WARNING: Calling this function with a component which is not registered
+    /// **Description:**
+    ///     Returns true if the given component type is attached to
+    ///     the entity, false otherwise
+    ///
+    /// **SAFETY:** 
+    ///     - Calling this function with a component which is not registered
     ///     in the system will result in a panic
     ///
     pub fn has_component<C: Component + Sized + 'static>(&self, entity_id: EntityId) -> bool {
-        if !self.check_component_registered::<C>() {
-            panic!("Component not registered for use {}", C::get_name())
-        }
+        assert!(
+            self.check_component_registered::<C>(),
+            "Component not registered for use {}",
+            C::get_name()
+        );
 
         // Getting the appropriate system for the component
-        let system = self.get_system_ref::<C>();
+        let system = self.get_system::<C>();
 
         // Querying for component presence
         system.has_component(entity_id)
     }
 
-    /// 
-    /// Used to get a mutable reference of the component attached to the
-    /// specified entity.
-    /// 
+    ///
+    /// **Description:**
+    ///     Used to get a mutable reference of the component attached to the
+    ///     specified entity.
+    ///
+    /// **SAFETY**: 
+    ///    - The component type requested by the user must be registered in the system
     pub fn get_component_mut_ref<C: Component + 'static>(&mut self, entity_id: EntityId) -> &mut C {
-        // @TODO: Change into assert
-        if !self.check_component_registered::<C>() {
-            panic!("Component not registered for use {}", C::get_name())
-        }
+        assert!(self.check_component_registered::<C>(), "Component not registered for use {}", C::get_name());
 
         let system = self.get_system_mut::<C>();
         system.borrow_component_mut(entity_id)

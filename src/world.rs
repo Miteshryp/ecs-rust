@@ -13,7 +13,7 @@ impl World {
         Self { entity_manager: EntityManager::new() }
     }
 
-    pub fn register_component_with_handler<C, Handler>(&mut self, handler: Handler)
+    pub fn register_component_with_handler<C, Handler>(&mut self)
     where
         C: Component + Sized + 'static,
         Handler: ComponentHandler<C>,
@@ -37,5 +37,29 @@ impl World {
     pub fn remove_component_from_entity<C: Component + Sized + 'static>(&mut self, entity_id: EntityId) {
         assert!(self.entity_manager.has_component::<C>(entity_id), "Component Removal failed: Component does not exist in the entity with id {}", entity_id);
         self.entity_manager.remove_component_from_entity::<C>(entity_id);
+    }
+
+
+    /// Collection functions
+    
+    pub fn get_all_entities() -> Vec<EntityId> {
+        todo!()
+    }
+
+    /// Returns a Vec of immutable reference for all the components attached
+    /// to the Entity with id `entity_id`
+    pub fn get_all_components(&self, entity_id: EntityId) -> Vec<Box<&dyn Component>> {
+        todo!()
+    }
+
+    pub fn start(&mut self) {
+
+    }
+}
+
+
+impl World {
+    fn update(&mut self) {
+        self.entity_manager.update_entities();
     }
 }

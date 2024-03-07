@@ -50,3 +50,14 @@ The flaw in this design is that I might actually not have the need to keep the r
     - Component communication should happen through events for an entity.
     - Entity system should be responsible for launching as well as handling events.
     - Events must be able to be launched by the Component Handler as well. (This is how a component will be able to initiate events)
+
+
+### How do we ID entities [Unanswered]
+
+A few ways to do this. 
+- First is that we can try to generate uuid for the entity. The flaw with this is that the uuid is a 128 bit struct, which might increase the memory cost
+- The second option is that we can put a serial generator in the EntityManger structure. The flaw with this approach might come when we want to work on multiple threads, as the serial generator will not be locally cached in the cache row, which could lead to serious performance hits due to consistency.
+
+Going for a hardware dependent option is a better approach in this case since it will free us of some metadata present in the EntityManager, not to mention the option for us to generate entities in parallel units.
+Although, thinking about this more, I realise that the entity manager is a single object in a world, which has to be accessed by all parallel units anyways. So since there is a single point of control anyways, it might not make much sense to do this. 
+But if we make id generation dependent on local units, the sync overhead might be minimized.

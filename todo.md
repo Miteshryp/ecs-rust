@@ -13,7 +13,13 @@
         - Entity -> A wrapper for a collection of components.
         - EntityManager?
     [] Learn how they interact with one another
-    [] Learn how we can create and store objects of a type by their TypeId (This uses hashmap, but it also depends on the implementation. Bevy used a custom Sparse HashMap because the TypeId itself actually stores a u128, which I am guessing produces dispursed values when the code is compiled.)
+    [x] Learn how we can create and store objects of a type by their TypeId 
+    
+    [] Solve entity id generation issue
+    [] Complete API for the world class
+    [] Define a consistent API for handlers
+
+    (This uses hashmap, but it also depends on the implementation. Bevy used a custom Sparse HashMap because the TypeId itself actually stores a u128, which I am guessing produces dispursed values when the code is compiled.)
     
 # Optimizations
     [] Explore the option to implement the sparse map version for optimizing memory. IMPORTANT: Carefully analyze the pros and cons and implement only if it actually benefits performance in the end.
