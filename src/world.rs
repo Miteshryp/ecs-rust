@@ -1,24 +1,29 @@
 use crate::{
     component::{
-        component_system::ComponentSystem, Component, ComponentHandler
-    }, entity::{entity_system::EntityManager, Entity, EntityId}, system::System
+        component_manager::ComponentManager, Component, ComponentHandler
+    }, entity::{entity_manager::EntityManager, Entity, EntityId}, system::EcsManager
 };
 
 pub struct World {
-    entity_manager: EntityManager
+    active: bool,
+    cleanup: bool,
+    entity_manager: EntityManager,
 }
 
 impl World {
     pub fn new() -> Self {
-        Self { entity_manager: EntityManager::new() }
+        Self { 
+            active: false,
+            cleanup: false,
+            entity_manager: EntityManager::new() 
+        }
     }
 
-    pub fn register_component_with_handler<C, Handler>(&mut self)
+    pub fn register_component<C>(&mut self)
     where
         C: Component + Sized + 'static,
-        Handler: ComponentHandler<C>,
     {
-        self.entity_manager.register_component::<C, Handler>();
+        self.entity_manager.register_component::<C>();
     }
 
     pub fn create_entity(&mut self) -> EntityId {
@@ -40,26 +45,24 @@ impl World {
     }
 
 
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
+    }
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+
     /// Collection functions
-    
-    pub fn get_all_entities() -> Vec<EntityId> {
+    pub fn get_all_entities(&self) -> Vec<EntityId> {
         todo!()
     }
 
-    /// Returns a Vec of immutable reference for all the components attached
-    /// to the Entity with id `entity_id`
-    pub fn get_all_components(&self, entity_id: EntityId) -> Vec<Box<&dyn Component>> {
-        todo!()
+    pub fn get_all_components<C: Component + 'static>(&self) -> Vec<(&C, &EntityId)> {
+        self.entity_manager.get_all_components::<C>()
     }
 
-    pub fn start(&mut self) {
-
-    }
-}
-
-
-impl World {
-    fn update(&mut self) {
-        self.entity_manager.update_entities();
+    pub fn get_all_components_mut<C: Component + 'static>(&mut self) -> Vec<(&mut C, &EntityId)> {
+        self.entity_manager.get_all_components_mut::<C>()
     }
 }

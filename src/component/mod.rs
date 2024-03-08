@@ -1,11 +1,14 @@
-pub mod component_system; 
+pub mod component_manager; 
 
-use std::any::TypeId;
+use std::any::{Any, TypeId};
+
+use crate::{entity::{entity_manager::EntityManager, EntityId}, world::World};
 
 pub trait Component {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
     fn get_name() -> String where Self: Sized;
-    fn into_component_type(&self) -> &Self where Self: Sized;
-    fn into_component_type_mut(&mut self) -> &mut Self where Self: Sized;
 }
 
 
@@ -27,7 +30,8 @@ where
     }
 
     // What all do we need to update the component?
-    fn on_update() {
-
-    }
+    // - World API
+    // - Component to be updated
+    // - entity id of the component
+    fn on_update(&mut self, world: &mut World, component: &mut Comp, entity_id: EntityId);
 }

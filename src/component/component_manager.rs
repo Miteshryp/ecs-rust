@@ -1,5 +1,9 @@
 use super::{Component, ComponentHandler};
-use crate::{entity::EntityId, system::System};
+use crate::{
+    entity::{entity_manager::EntityManager, Entity, EntityId},
+    system::EcsManager,
+    world::World,
+};
 
 use std::{
     any::{Any, TypeId},
@@ -10,7 +14,7 @@ use std::{
 ///
 /// @NOTE: One entity can only have one instance of a type of component, so maybe component id is useless
 ///     For a component, we can simply use the entity id to identify the component attached to the entity
-pub(crate) struct ComponentSystem<Comp>
+pub(crate) struct ComponentManager<Comp>
 where
     Comp: Component,
 {
@@ -33,12 +37,11 @@ where
     ///     each component is attached to a unique entity, hence we can use
     ///     entity id as the identifier for the components
     entity_component_map: HashMap<EntityId, usize>,
-
-    /// Handler attached to the system object for enabling custom updation
-    /// of the components in the system
-    handler: Box<dyn ComponentHandler<Comp>>,
+    // Handler attached to the system object for enabling custom updation
+    // of the components in the system
+    // handler: Box<dyn ComponentHandler<Comp>>,
 }
-impl<Comp> System for ComponentSystem<Comp>
+impl<Comp> EcsManager for ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
@@ -49,24 +52,34 @@ where
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self as &mut dyn Any
     }
+
+    // /// Calls the System attached to all components in the manager
+    // fn update(&mut self, world: &mut World) {
+
+    //     // On Update call for handler
+    //     for (index, component) in &mut self.components.iter_mut().enumerate() {
+    //         let entity_id = self.entity_ids[index];
+    //         self.handler.on_update(world, component, entity_id);
+    //     }
+    // }
 }
 
 /// Public functions of the ComponentSystem struct
-impl<Comp> ComponentSystem<Comp>
+impl<Comp> ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
     /// System initialisation function. Used to create a new system to handle the specified type of component
-    pub fn new<Handler>() -> Self
-    where
-        Handler: ComponentHandler<Comp>,
+    pub fn new() -> Self
+// where
+    //     Handler: ComponentHandler<Comp>,
     {
-        ComponentSystem {
+        ComponentManager {
             system_id: TypeId::of::<Self>(),
             components: vec![],
             entity_ids: vec![],
             entity_component_map: HashMap::new(),
-            handler: Box::new(Handler::new()),
+            // handler: Box::new(Handler::new()),
         }
     }
 
@@ -118,7 +131,7 @@ where
 
     ///
     /// Used to find whether the component is attached to the `entity_id`
-    /// 
+    ///
     /// Returns
     ///     true if the component is present in the entity
     ///     false otherwise
@@ -150,6 +163,17 @@ where
         self.components
             .get_mut(*self.entity_component_map.get(&entity_id).unwrap())
             .unwrap()
+    }
+
+    pub fn get_all_components(&self) -> Vec<(&Comp, &EntityId)> {
+        self.components.iter().zip(self.entity_ids.iter()).collect()
+    }
+
+    pub fn get_all_components_mut(&mut self) -> Vec<(&mut Comp, &EntityId)> {
+        self.components
+            .iter_mut()
+            .zip(self.entity_ids.iter())
+            .collect()
     }
 
     pub fn get_system_id(&self) -> TypeId {

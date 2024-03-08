@@ -1,4 +1,4 @@
-pub mod entity_system;
+pub mod entity_manager;
 
 use std::hash::Hash;
 
