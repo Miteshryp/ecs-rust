@@ -2,7 +2,6 @@ use std::{any::TypeId, collections::HashMap};
 
 use crate::{
     component::{component_manager::ComponentManager, Component},
-    system::EcsManager,
     world::World,
 };
 use super::Entity;
@@ -26,8 +25,6 @@ pub(crate) struct EntityManager {
     // Emtpy indexes
     empty_index: Vec<usize>,
     
-    // Lookup table for entities
-    // entity_id_map: HashMap<EntityId, usize>,
 }
 
 impl EntityManager {

@@ -6,16 +6,12 @@ Another additional goal of this project is to actually explore how this architec
 
 # PRIMARY
 
-[x] Determine the design of the project
-    [x] Prepare a list of structures required in the ECS setting
-    [x] Learn how they interact with one another
-    
-[] Complete API for the world class
-[] Solve entity id generation issue
+[x] Complete API for the world class
+[x] Check all APIs designed yet.
+
 [] Write API Documentation
 [] Learn to put attributes in derive macros for system derives
 
-[] Check all APIs designed yet.
 
 # Additional Features (Future Plans)
 [] Think about creating different types of systems
@@ -23,8 +19,6 @@ Another additional goal of this project is to actually explore how this architec
 [] Design a solution to event system.
 [] Add Schedules similar to bevy. These schedules will run different systems (I think).
 [] Explore possibility of execution graphs to enable multithreded ECS
-
-[x] Implement derivable traits across the project (Need to learn how to handle TokenStream first)
 
 # Optimizations
     [] Explore the option to implement the sparse map version for optimizing memory. IMPORTANT: Carefully analyze the pros and cons and implement only if it actually benefits performance in the end.

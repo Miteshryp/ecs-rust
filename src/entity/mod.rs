@@ -8,6 +8,8 @@ use std::{fmt::Debug, hash::Hash};
 /// by LLVM for functions which might need to convert the struct into 
 /// a series of bits. (This is the explanation given in the bevy source code,
 /// but they have a function to bits for the entity id)
+/// 
+/// @TODO: Document generational id
 #[repr(C, align(8))]
 #[derive(Debug)]
 pub struct Entity {

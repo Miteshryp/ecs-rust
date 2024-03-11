@@ -42,9 +42,6 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         App {
-            // world: Rc::new(RefCell::new(World::new())),
-            // world: RefCell::new(World::new()),
-            // world: World::new(),
             world_container: UnsafeWorldContainer::new(),
             systems: vec![]
         }    

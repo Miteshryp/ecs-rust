@@ -1,8 +1,8 @@
-use std::{any::TypeId, borrow::Borrow, cell::{Cell, Ref, RefCell, RefMut}, collections::HashMap, ops::{Deref, DerefMut}, rc::Rc};
+use std::{any::TypeId, cell::{Cell, RefMut}, collections::HashMap, };
 
 use crate::{
-    component::{component_manager::ComponentManager, Component},
-    entity::{entity_manager::EntityManager, Entity}, system::EcsManager,
+    component::{component_manager::{ComponentManager, EcsManager}, Component},
+    entity::{entity_manager::EntityManager, Entity}, 
 };
 
 
@@ -10,6 +10,26 @@ use crate::{
 /// 
 /// The [`World`] struct is responsible for storing the state information of
 /// the ECS application running.
+/// 
+/// ### Description
+/// 
+/// The world struct also acts as an API for the user to modify or access the 
+/// current state of the system based on logic defined in a system designed by the 
+/// user.
+/// 
+/// It has the following fields
+/// 1. [`entity manager`](World::entity_manager) - This is the entity manager responsible
+/// for generating generational id. For more info on generational id, See [Entity]. This structure generates
+/// ids for entities, which are used by [`component managers`]()
+/// 
+/// 2. [`component manager`](World::component_managers) - A component manager is a struct
+/// which implements the EcsManager trait and is responsible for handling affairs related 
+/// to a specific type of user defined component. A component to be handled in the world
+/// must first be registered in the world, which in turn creates the appropriate
+/// manager for the component.
+/// 
+/// 
+/// 
 pub struct World {
     active: bool,
     cleanup: bool,
@@ -18,7 +38,7 @@ pub struct World {
     entity_manager: EntityManager,
 
     /// Component systems based on component types
-    component_systems: HashMap<TypeId, Box<dyn EcsManager>>,
+    component_managers: HashMap<TypeId, Box<dyn EcsManager>>,
 
 }
 
@@ -40,19 +60,22 @@ impl World {
     /// This validation must be performed before performing operations
     /// on a component
     fn check_component_registered<C: Component + 'static>(&self) -> bool {
-        self.component_systems.contains_key(&TypeId::of::<C>())
+        self.component_managers.contains_key(&TypeId::of::<C>())
     }
 
+    // @TODO: Think about the panic behavior, is it right?
+
     ///
+    /// ### Description:
     /// Returns a mutable reference of a [`ComponentSystem`] object
     /// which is present in the [`EntityManager`] object
     ///
-    /// WARNING: The component must be registered in the system, otherwise the
+    /// WARNING: The component must be registered in on of the [`component manager`](World::component_managers), otherwise the
     /// function will result in a panic
     ///
     fn get_manager_mut<C: Component + Sized + 'static>(&mut self) -> &mut ComponentManager<C> {
         let system = self
-            .component_systems
+            .component_managers
             .get_mut(&Self::get_component_type_id::<C>())
             .unwrap();
         let system = system
@@ -67,12 +90,12 @@ impl World {
     /// Returns an immutable reference of a [`ComponentSystem`] object
     /// which is present in the [`EntityManager`] object
     ///
-    /// WARNING: The component must be registered in the system, otherwise the
+    /// WARNING: The component must be registered on of the [`component manager`](World::component_managers), otherwise the
     /// function will result in a panic
     ///
     fn get_manager<C: Component + Sized + 'static>(&self) -> &ComponentManager<C> {
         let system = self
-            .component_systems
+            .component_managers
             .get(&Self::get_component_type_id::<C>())
             .unwrap();
         let system = system
@@ -90,19 +113,21 @@ impl World {
             active: false,
             cleanup: false,
             entity_manager: EntityManager::new(),
-            component_systems: HashMap::new(),
+            component_managers: HashMap::new(),
         }
     }
 
 
+    /// Creates an entity in the world and returns its id
     pub fn create_entity(&mut self) -> Entity {
         self.entity_manager.create_entity()
     }
 
+    /// Removes an entity from the world and deallocates all components
+    /// attached to it.
     pub fn remove_entity(&mut self, entity_id: Entity) {
-
         // Dispose all components attached to the entity
-        for (_, system) in &mut self.component_systems {
+        for (_, system) in &mut self.component_managers {
             if system.has_component(entity_id) {
                 system.remove_component_from_entity(entity_id);
             }
@@ -118,17 +143,16 @@ impl World {
     /// component systems for handling the component
     ///
     /// Components of this type can be attached to generated entities
-    /// only after registering the component type in the manager.
+    /// only after registering the component type in the [`manager`](World::component_managers).
     ///
     pub fn register_component<C: Component + 'static>(&mut self) {
-        println!("Registering component");
         if self.check_component_registered::<C>() {
             println!("Component already registered: {}", C::get_name());
             return;
         }
 
         // Creating system for the component type
-        self.component_systems.insert(
+        self.component_managers.insert(
             Self::get_component_type_id::<C>(),
             Box::new(ComponentManager::<C>::new()),
         );
@@ -160,6 +184,8 @@ impl World {
     }
 
     ///
+    /// ### Description
+    /// 
     /// Removes the given component type from the entity
     ///
     /// WARNING: Calling this function with a component which is not
@@ -181,7 +207,7 @@ impl World {
     }
 
     ///
-    /// ### Description:
+    /// ### Description
     /// 
     /// Returns true if the given component type is attached to
     /// the entity, false otherwise
@@ -222,22 +248,6 @@ impl World {
         system.get_all_component_ids()
     }
 
-    /// ### Description
-    /// 
-    /// Returns all mutable components of a specific type defined by the generic type
-    /// parameter.
-    /// 
-    /// This function initiates a call to the appropriate component manager for the 
-    /// type and gets the list of mutable components.
-    /// 
-    /// ### Returns
-    /// 
-    /// A pair of mutable Component and Entity references.
-    // pub(crate) fn get_all_components_mut<C: Component + 'static>(&mut self) -> Vec<(RefMut<'_, C>, &Entity)> {
-    //     let system = self.get_manager_mut::<C>();
-    //     system.get_all_components_mut()
-    // }
-
     ///
     /// ### Description:
     /// 
@@ -261,17 +271,41 @@ impl World {
     pub fn set_active(&mut self, active: bool) {
         self.active = active;
     }
+
+
     pub fn is_active(&self) -> bool {
         self.active
-    }
-
-    /// Collection functions
-    pub fn get_all_entities(&self) -> Vec<Entity> {
-        todo!()
     }
 }
 
 
+
+/// ### Description
+/// Structure for storing unsafe world reference in ECS App
+/// 
+/// The unsafe world container stores the World instance in a 
+/// Cell structure, hence allowing us to use interior mutability
+/// on the World instance.
+/// 
+/// We require world to have interior mutability for following reasons
+/// - Systems being launched in the ECS systems take in a mutable 
+/// reference to the world API so that the user can have the flexibility
+/// to make modifications to world based on component update logic
+/// - We want to supply a mutable reference the current component being
+/// processed in the system, which requires us to make both mutable and immutable
+/// references to the world structure
+/// - This however poses problems, since we need mutable reference for user interface,
+/// but need the immutable world interface ourselves at the same time.
+/// - Though this code is not unsafe since we do not use the immutable 
+/// reference once we get the entity ids, we are nevertheless punished by the 
+/// rust borrow checker for getting a mutable reference to a memory which
+/// has been used as immutable in the same context.
+/// - Hence, we use this unsafe structure to bypass the bounds of rust typechecker
+/// while taking the responsibility of memory safety on ourselves.
+/// 
+/// For more on component specific safety, see [ComponentManager]
+/// 
+/// 
 pub(crate) struct UnsafeWorldContainer {
     pub(crate) world: Cell<World>,
 }
@@ -295,7 +329,7 @@ impl UnsafeWorldContainer {
     /// The caller must ensure that the mutable reference being borrowed
     /// from this function is safe to be accessed.
     /// This function is supposed to be called to get mutable references 
-    /// to components out of the world for processing in [`BaseSystem::process_update`](BaseSystem)
+    /// to components out of the world for processing in [`process_update`](BaseSystem::process_update)
     pub fn get_world_mut(&self) -> &mut World {
         unsafe { &mut *(self.world.as_ptr()) }
     }
@@ -303,7 +337,3 @@ impl UnsafeWorldContainer {
 
 
 pub type WorldArg = World;
-// pub type WorldArg = Cell<World>;
-// pub type WorldArg = Rc<Cell<World>>;
-// pub type WorldArg = Rc<RefCell<World>>;
-// pub type WorldArg<'a> = std::cell::RefMut<'a, World> ;

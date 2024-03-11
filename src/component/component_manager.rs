@@ -1,32 +1,60 @@
 use super::Component;
 use crate::{
     entity::{entity_manager::EntityManager, Entity},
-    system::EcsManager,
     world::World,
 };
 
 use std::{
-    any::{Any, TypeId}, borrow::Borrow, cell::{Ref, RefCell, RefMut}, collections::HashMap
+    any::{Any, TypeId},
+    borrow::Borrow,
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
 };
 
-/// Contains the interface for implementing the logic for handling a specific type of component
+pub trait EcsManager {
+    /// As Any trait is implemented to facilitate downcasting
+    /// into the appropriate system type by the event manager
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn new() -> Self
+    where
+        Self: Sized;
+    fn remove_component_from_entity(&mut self, entity_id: Entity);
+    fn has_component(&self, entity_id: Entity) -> bool;
+}
+
+/// 
+/// ### Description
+/// Structure for managing a components of a specific type
+/// 
+/// This is an internal structure which is stored in the [`world`](crate::App::world), and is responsible
+/// for storing, modifying and ensuring safety of components created in a given world
+/// The components stored in this struct are identified using their entity_id, where we
+/// create a B-Tree structure to quickly trace a component in the array
+/// 
+/// 
+/// 
+/// This structure implements the base [EcsManager] interface because
+/// a base trait is required for storing managers in the world, since 
+/// each manager has a different component type which cannot be known 
+/// during declaration, i.e. compile time.
+/// 
+/// #### SAFETY:
+/// Also, each [`component`](ComponentManager::components) is stored as a [RefCell], which ensures
+/// that the component does not have illegal references anywhere in the program.
 ///
-/// @NOTE: One entity can only have one instance of a type of component, so maybe component id is useless
-///     For a component, we can simply use the entity id to identify the component attached to the entity
 pub(crate) struct ComponentManager<Comp>
 where
     Comp: Component,
 {
-    system_id: TypeId,
-
     /// Contiguous array of components which enables us to do faster
     /// update operations due to better cache locality.
-    /// RefCell dynamically checks the mutable references to a component, 
-    /// hence we cannot have more than one mutable reference to a component
-    components: Vec<RefCell<Comp>>, 
-    
+    /// RefCell dynamically checks the mutable references to a component,
+    /// hence we cannot have illegal reference to a component
+    components: Vec<RefCell<Comp>>,
 
-    /// Stores the entity ids of the components in the components vector
+    /// Stores the [entity ids](Entity) of the [`components`](ComponentManager::components) 
     /// in the same order as the components are presented in the array
     /// above.
     entity_ids: Vec<Entity>,
@@ -40,14 +68,18 @@ where
     ///     entity id as the identifier for the components
     entity_component_map: HashMap<Entity, usize>,
 }
+
+
 impl<Comp> EcsManager for ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
+    /// Enables downcasting
     fn as_any(&self) -> &dyn Any {
         self as &dyn Any
     }
 
+    /// Enables downcasting
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self as &mut dyn Any
     }
@@ -55,7 +87,6 @@ where
     /// System initialisation function. Used to create a new system to handle the specified type of component
     fn new() -> Self {
         ComponentManager {
-            system_id: TypeId::of::<Self>(),
             components: vec![],
             entity_ids: vec![],
             entity_component_map: HashMap::new(),
@@ -91,16 +122,22 @@ where
         self.entity_component_map.remove(&entity_id).unwrap();
     }
 
+
+
     ///
-    /// Used to find whether the component is attached to the `entity_id`
+    /// ### Description:
+    /// 
+    /// Used to find whether the component is attached to the [`entity_id`](Entity)
     ///
-    /// Returns
-    ///     true if the component is present in the entity
-    ///     false otherwise
+    /// ### Return Value:
+    /// [`true`](bool) if the component is present in the entity
+    /// [`false`](bool) otherwise
     fn has_component(&self, entity_id: Entity) -> bool {
         self.entity_component_map.contains_key(&entity_id)
     }
 }
+
+
 
 /// Public functions of the ComponentSystem struct
 impl<Comp> ComponentManager<Comp>
@@ -118,14 +155,17 @@ where
         );
 
         let component_index = self.components.len();
-        // self.components.push(component);
 
         self.components.push(RefCell::new(component));
         self.entity_ids.push(entity_id);
         self.entity_component_map.insert(entity_id, component_index);
-        // .unwrap();
     }
 
+    /// Used to get a immutable reference to a component in the manager
+    /// 
+    /// #### SAFETY: 
+    /// [`components`](ComponentManager::components) is protected by a [`RefCell`], hence the reference
+    /// to the component cannot be used illegally.
     pub fn borrow_component(&self, entity_id: Entity) -> Ref<'_, Comp> {
         assert!(
             self.entity_component_map.contains_key(&entity_id),
@@ -133,14 +173,25 @@ where
             entity_id
         );
 
-        // @SAFETY: Component is guarenteed to be present in the vector since
-        //      the entity id is present in the lookup table
         self.components
             .get(*self.entity_component_map.get(&entity_id).unwrap())
             .unwrap()
-            .borrow()
+            .try_borrow()
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Component [id: {:?}, type: {:?}] -> Shared reference not possible. \n{}",
+                    entity_id,
+                    TypeId::of::<Comp>(),
+                    err.to_string()
+                );
+            })
     }
 
+    /// Used to get a mutable reference to a component in the manager
+    /// 
+    /// #### SAFETY: 
+    /// [`components`](ComponentManager::components) is protected by RefCell,
+    /// hence illegal code crashes at runtime
     pub fn borrow_component_mut(&self, entity_id: Entity) -> RefMut<'_, Comp> {
         assert!(
             self.entity_component_map.contains_key(&entity_id),
@@ -148,31 +199,23 @@ where
             entity_id
         );
 
-        // @SAFETY: Component is guarenteed to be present in the vector since
-        //      the entity id is present in the lookup table
         self.components
             .get(*self.entity_component_map.get(&entity_id).unwrap())
             .unwrap()
-            .borrow_mut()
+            .try_borrow_mut()
+            .unwrap_or_else(|err| {
+                panic!(
+                    "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+                    entity_id,
+                    TypeId::of::<Comp>(),
+                    err.to_string()
+                );
+            })
     }
 
+    /// Gets a vec of &[id](Entity) of all the components currently 
+    /// alive in the manager
     pub fn get_all_component_ids(&self) -> Vec<&Entity> {
-        // self.components.iter().map(|c| c.borrow()).zip(self.entity_ids.iter()).collect()
         self.entity_ids.iter().collect()
-    }
-
-    // pub fn get_all_components_mut(&self) -> Vec<(RefMut<'_, Comp>, &Entity)> {
-    //     let v: Vec<(RefMut<'_, Comp>, &Entity)> = self
-    //         .components
-    //         .iter()
-    //         .map(|c| c.borrow_mut())
-    //         .zip(self.entity_ids.iter())
-    //         .collect();
-    //     println!("{}", v.len());
-    //     v
-    // }
-
-    pub fn get_system_id(&self) -> TypeId {
-        self.system_id
     }
 }
