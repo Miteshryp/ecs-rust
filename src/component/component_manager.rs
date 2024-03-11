@@ -1,13 +1,12 @@
-use super::{Component, ComponentHandler};
+use super::Component;
 use crate::{
-    entity::{entity_manager::EntityManager, Entity, EntityId},
+    entity::{entity_manager::EntityManager, Entity},
     system::EcsManager,
     world::World,
 };
 
 use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
+    any::{Any, TypeId}, borrow::Borrow, cell::{Ref, RefCell, RefMut}, collections::HashMap
 };
 
 /// Contains the interface for implementing the logic for handling a specific type of component
@@ -22,24 +21,24 @@ where
 
     /// Contiguous array of components which enables us to do faster
     /// update operations due to better cache locality.
-    components: Vec<Comp>,
+    /// RefCell dynamically checks the mutable references to a component, 
+    /// hence we cannot have more than one mutable reference to a component
+    components: Vec<RefCell<Comp>>, 
+    
 
     /// Stores the entity ids of the components in the components vector
     /// in the same order as the components are presented in the array
     /// above.
-    entity_ids: Vec<EntityId>,
+    entity_ids: Vec<Entity>,
 
-    /// [EntityId] to 'index' mapping to boost lookup
+    /// [Entity] to 'index' mapping to boost lookup
     ///
-    /// NOTE: We use [EntityId] to identify a component in the system since
+    /// NOTE: We use [Entity] to identify a component in the system since
     ///     each component in existence has to be attached to an entity,
     ///     therefore for a component system managing a specific type of component,
     ///     each component is attached to a unique entity, hence we can use
     ///     entity id as the identifier for the components
-    entity_component_map: HashMap<EntityId, usize>,
-    // Handler attached to the system object for enabling custom updation
-    // of the components in the system
-    // handler: Box<dyn ComponentHandler<Comp>>,
+    entity_component_map: HashMap<Entity, usize>,
 }
 impl<Comp> EcsManager for ComponentManager<Comp>
 where
@@ -53,59 +52,22 @@ where
         self as &mut dyn Any
     }
 
-    // /// Calls the System attached to all components in the manager
-    // fn update(&mut self, world: &mut World) {
-
-    //     // On Update call for handler
-    //     for (index, component) in &mut self.components.iter_mut().enumerate() {
-    //         let entity_id = self.entity_ids[index];
-    //         self.handler.on_update(world, component, entity_id);
-    //     }
-    // }
-}
-
-/// Public functions of the ComponentSystem struct
-impl<Comp> ComponentManager<Comp>
-where
-    Comp: Component + 'static,
-{
     /// System initialisation function. Used to create a new system to handle the specified type of component
-    pub fn new() -> Self
-// where
-    //     Handler: ComponentHandler<Comp>,
-    {
+    fn new() -> Self {
         ComponentManager {
             system_id: TypeId::of::<Self>(),
             components: vec![],
             entity_ids: vec![],
             entity_component_map: HashMap::new(),
-            // handler: Box::new(Handler::new()),
         }
     }
 
-    /// Adds a component into the system based on the stack-build object passed
-    /// as a parameter
-    pub fn add_component_to_entity(&mut self, entity_id: EntityId, component: Comp) {
-        // Entity should not already have the component attached to it.
-        assert!(
-            !self.entity_component_map.contains_key(&entity_id),
-            "Component addition to Entity [{}] failed: Duplicate components are not allowed in entities.", 
-            entity_id
-        );
-
-        let component_index = self.components.len();
-        self.components.push(component);
-        self.entity_component_map
-            .insert(entity_id, component_index)
-            .unwrap();
-    }
-
     /// Removes a component from the entity if the component was attached,
-    pub fn remove_component_from_entity(&mut self, entity_id: EntityId) {
+    fn remove_component_from_entity(&mut self, entity_id: Entity) {
         // Entity must have a component of type [`Comp`] attached for removal to be possible
         assert!(
             self.entity_component_map.contains_key(&entity_id),
-            "Entity [{}] does not have a component of type \'{}\'",
+            "Entity [{:?}] does not have a component of type \'{}\'",
             entity_id,
             Comp::get_name()
         );
@@ -135,14 +97,40 @@ where
     /// Returns
     ///     true if the component is present in the entity
     ///     false otherwise
-    pub fn has_component(&self, entity_id: EntityId) -> bool {
+    fn has_component(&self, entity_id: Entity) -> bool {
         self.entity_component_map.contains_key(&entity_id)
     }
+}
 
-    pub fn borrow_component(&self, entity_id: EntityId) -> &Comp {
+/// Public functions of the ComponentSystem struct
+impl<Comp> ComponentManager<Comp>
+where
+    Comp: Component + 'static,
+{
+    /// Adds a component into the system based on the stack-build object passed
+    /// as a parameter
+    pub fn add_component_to_entity(&mut self, entity_id: Entity, component: Comp) {
+        // Entity should not already have the component attached to it.
+        assert!(
+            !self.entity_component_map.contains_key(&entity_id),
+            "Component addition to Entity [{:?}] failed: Duplicate components are not allowed in entities.", 
+            entity_id
+        );
+
+        let component_index = self.components.len();
+        // self.components.push(component);
+
+        self.components.push(RefCell::new(component));
+        self.entity_ids.push(entity_id);
+        self.entity_component_map.insert(entity_id, component_index);
+        // .unwrap();
+    }
+
+    pub fn borrow_component(&self, entity_id: Entity) -> Ref<'_, Comp> {
         assert!(
             self.entity_component_map.contains_key(&entity_id),
-            "Component does not exist in the entity id: {entity_id}"
+            "Component does not exist in the entity id: {:?}",
+            entity_id
         );
 
         // @SAFETY: Component is guarenteed to be present in the vector since
@@ -150,31 +138,39 @@ where
         self.components
             .get(*self.entity_component_map.get(&entity_id).unwrap())
             .unwrap()
+            .borrow()
     }
 
-    pub fn borrow_component_mut(&mut self, entity_id: EntityId) -> &mut Comp {
+    pub fn borrow_component_mut(&self, entity_id: Entity) -> RefMut<'_, Comp> {
         assert!(
             self.entity_component_map.contains_key(&entity_id),
-            "Component does not exist in the entity id: {entity_id}"
+            "Component does not exist in the entity id: {:?}",
+            entity_id
         );
 
         // @SAFETY: Component is guarenteed to be present in the vector since
         //      the entity id is present in the lookup table
         self.components
-            .get_mut(*self.entity_component_map.get(&entity_id).unwrap())
+            .get(*self.entity_component_map.get(&entity_id).unwrap())
             .unwrap()
+            .borrow_mut()
     }
 
-    pub fn get_all_components(&self) -> Vec<(&Comp, &EntityId)> {
-        self.components.iter().zip(self.entity_ids.iter()).collect()
+    pub fn get_all_component_ids(&self) -> Vec<&Entity> {
+        // self.components.iter().map(|c| c.borrow()).zip(self.entity_ids.iter()).collect()
+        self.entity_ids.iter().collect()
     }
 
-    pub fn get_all_components_mut(&mut self) -> Vec<(&mut Comp, &EntityId)> {
-        self.components
-            .iter_mut()
-            .zip(self.entity_ids.iter())
-            .collect()
-    }
+    // pub fn get_all_components_mut(&self) -> Vec<(RefMut<'_, Comp>, &Entity)> {
+    //     let v: Vec<(RefMut<'_, Comp>, &Entity)> = self
+    //         .components
+    //         .iter()
+    //         .map(|c| c.borrow_mut())
+    //         .zip(self.entity_ids.iter())
+    //         .collect();
+    //     println!("{}", v.len());
+    //     v
+    // }
 
     pub fn get_system_id(&self) -> TypeId {
         self.system_id
