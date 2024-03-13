@@ -9,7 +9,7 @@ This is a sub-project which was initiated as a exploration while I was building 
 
 The ECS framework can easily be used by creating the `App` struct in the main runner function.
 
-```
+```rust
 fn main( ) {
     let app = app.new();
     app.start();

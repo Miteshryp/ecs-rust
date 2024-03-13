@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn;
+use syn::{self, parse_quote};
 
 /// 
 /// Implementation for the [`ComponentSystem`](crate::ComponentSystem) proc macro
@@ -75,8 +75,12 @@ pub(crate) fn component_system_impl(ast: syn::DeriveInput) -> TokenStream {
 
 
 /// Implementation of the [`Component`](crate::Component) proc macro
-pub(crate) fn component_impl(ast: syn::DeriveInput) -> TokenStream {
+pub(crate) fn component_impl(mut ast: syn::DeriveInput) -> TokenStream {
     let type_name = ast.ident;
+
+    // ast.generics.make_where_clause().predicates.push(parse_quote! {});
+
+    // let (impl_generics, type_generics, where_clause) = &ast.generics.split_for_impl();
     
     let gen = quote! {
         impl Component for #type_name {
