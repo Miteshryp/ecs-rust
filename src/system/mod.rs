@@ -10,8 +10,8 @@ use crate::{
 };
 
 pub trait BaseSystem {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    // fn as_any(&self) -> &dyn Any;
+    // fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn process_update(&mut self, world: &mut UnsafeWorldContainer);
     fn process_start(&mut self, world: &mut UnsafeWorldContainer);

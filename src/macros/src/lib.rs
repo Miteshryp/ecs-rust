@@ -1,10 +1,12 @@
 extern crate proc_macro;
 
-mod impl_macro;
-
 use proc_macro::{TokenStream, TokenTree};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn;
+
+mod component;
+mod system;
+mod base;
 
 /// ### ECS System derive
 ///
@@ -58,7 +60,7 @@ use syn;
 #[proc_macro_derive(ComponentSystem)]
 pub fn system_derive(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    impl_macro::component_system_impl(ast)
+    system::derive_component_system(ast)
 }
 
 /// ### ECS Component derive
@@ -80,5 +82,12 @@ pub fn system_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Component)]
 pub fn component_derive(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    impl_macro::component_impl(ast)
+    component::derive_component(ast)
+}
+
+
+#[proc_macro_derive(ECSBase)]
+pub fn base_derive(input: TokenStream) -> TokenStream {
+    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    base::derive_base(&mut ast).to_token_stream().into()
 }

@@ -1,7 +1,8 @@
+use ecs_macros::ECSBase;
+
 use super::Component;
 use crate::{
-    entity::{entity_manager::EntityManager, Entity},
-    world::World,
+    ecs_base::{ECSBase}, entity::{entity_manager::EntityManager, Entity}, world::World
 };
 
 use std::{
@@ -11,11 +12,11 @@ use std::{
     collections::HashMap,
 };
 
-pub trait EcsManager {
-    /// As Any trait is implemented to facilitate downcasting
-    /// into the appropriate system type by the event manager
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait EcsManager: ECSBase {
+    // /// As Any trait is implemented to facilitate downcasting
+    // /// into the appropriate system type by the event manager
+    // fn as_any(&self) -> &dyn Any;
+    // fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn new() -> Self
     where
@@ -44,6 +45,27 @@ pub trait EcsManager {
 /// Also, each [`component`](ComponentManager::components) is stored as a [RefCell], which ensures
 /// that the component does not have illegal references anywhere in the program.
 ///
+/// 
+
+// impl <Comp: Component> ECSBase for ComponentManager<Comp> where Self: Sized + 'static {
+//     fn as_any(&self) -> &dyn Any {
+//         self as &dyn Any
+//     }
+
+//     fn as_any_mut(&mut self) -> &mut dyn Any{
+//         self as &mut dyn Any
+//     }
+
+//     fn downcast_to_ref<T: ECSBase + Sized + 'static>(&self) -> &T where Self: Sized {
+//         self.as_any().downcast_ref::<T>().unwrap()
+//     }
+
+//     fn downcast_to_ref_mut<T: ECSBase + Sized + 'static>(&mut self) -> &mut T where Self: Sized {
+//         self.as_any_mut().downcast_mut::<T>().unwrap()
+//     }
+// }
+
+#[derive(ECSBase)]
 pub(crate) struct ComponentManager<Comp>
 where
     Comp: Component,
@@ -74,15 +96,6 @@ impl<Comp> EcsManager for ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
-    /// Enables downcasting
-    fn as_any(&self) -> &dyn Any {
-        self as &dyn Any
-    }
-
-    /// Enables downcasting
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self as &mut dyn Any
-    }
 
     /// System initialisation function. Used to create a new system to handle the specified type of component
     fn new() -> Self {

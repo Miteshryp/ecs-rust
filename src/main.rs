@@ -3,6 +3,7 @@ mod component;
 mod entity;
 mod system;
 mod world;
+mod ecs_base;
 
 use app::App;
 use component::Component;
@@ -13,6 +14,7 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     rc::Rc,
 };
+use ecs_base::{ECSBase};
 use system::{BaseSystem, ComponentSystem};
 use world::{UnsafeWorldContainer, World, WorldArg};
 
