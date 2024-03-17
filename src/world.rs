@@ -49,8 +49,8 @@ pub struct World {
     component_managers: HashMap<TypeId, Box<dyn EcsManager>>,
 
     /// Resources present in the world
-    // resources: HashMap<ResourceId, RefCell<Box<dyn Resource>>>,
-    resources: HashMap<ResourceId, Box<RefCell<dyn Resource>>>,
+    // resources: HashMap<ResourceId, Box<RefCell<dyn Resource>>>,
+    resources: HashMap<ResourceId, Box<dyn Resource>>,
 }
 
 /// Private member implementations
@@ -130,6 +130,10 @@ impl World {
     pub fn create_entity(&mut self) -> Entity {
         self.entity_manager.create_entity()
     }
+    
+    pub fn generate_targeted_event(&mut self, receivers: Vec<TypeId>) {
+        // vec![]
+    }
 
     /// Removes an entity from the world and deallocates all components
     /// attached to it.
@@ -168,25 +172,50 @@ impl World {
     /// Adding resource to the world
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
         assert!(!self.resources.contains_key(&R::get_type()));
+
         // self.resources
-        //     .insert(R::get_type(), RefCell::new(Box::new(resource)));
-        self.resources
-            .insert(R::get_type(), Box::new(RefCell::new(resource)));
+        //     .insert(R::get_type(), Box::new(RefCell::new(resource)));
+
+        self.resources.insert(R::get_type(), Box::new(resource));
     }
 
-    pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> RefMut<'_, R> {
-        assert!(self.resources.contains_key(&R::get_type()));
-        self.resources.get_mut(&R::get_type()).unwrap().try_borrow_mut().unwrap()
-    }
-
-    // pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> RefMut<'_, R> {
+    // pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> &mut R {
     //     assert!(self.resources.contains_key(&R::get_type()));
     //     self.resources
     //         .get_mut(&R::get_type())
     //         .unwrap()
-    //         .try_borrow_mut()
+    //         .get_mut()
+    //         .as_any_mut()
+    //         .downcast_mut::<R>()
     //         .unwrap()
     // }
+
+    // pub fn get_resource<R: Resource + Sized + 'static>(&self) -> &R {
+    //     assert!(self.resources.contains_key(&R::get_type()));
+    //     let mut boxed = self.resources.get(&R::get_type()).unwrap();
+
+    //     boxed.get_mut().as_any().downcast_ref().unwrap()
+    // }
+
+    pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> &mut R {
+        assert!(self.resources.contains_key(&R::get_type()));
+        self.resources
+            .get_mut(&R::get_type())
+            .unwrap()
+            .as_any_mut()
+            .downcast_mut::<R>()
+            .unwrap()
+    }
+
+    pub fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> &R {
+        assert!(self.resources.contains_key(&R::get_type()));
+        self.resources
+            .get(&R::get_type())
+            .unwrap()
+            .as_any()
+            .downcast_ref::<R>()
+            .unwrap()
+    }
 
     ///
     /// ### Description

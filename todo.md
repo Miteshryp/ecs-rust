@@ -6,17 +6,20 @@ Another additional goal of this project is to actually explore how this architec
 
 # PRIMARY
 
-[] Implement Resources
+[] Redesign the System API to be functional
+
 [] Design Event flow
-[] Think about creating different types of systems
+
 
 [] Learn to put attributes in derive macros for system derives
 
 [] Think about how can we execute systems in parallel by identifying dependencies of a system.
+
 [] Design the system scheduler for task deployment. First, analyze if it is really needed. I am thinking in a parallel setting it can be useful.
 
 # Additional Features (Future Plans)
-[] Add Schedules similar to bevy. These schedules will run different systems (I think).
+[] Add Schedules similar to bevy. These schedules will run different systems (I think) [I'll call them flows].
+
 [] Explore possibility of execution graphs to enable multithreded ECS
 
 # Optimizations

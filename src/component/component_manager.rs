@@ -1,4 +1,4 @@
-use ecs_macros::ECSBase;
+use ecs_macros::{ECSBase};
 
 use super::Component;
 use crate::{

@@ -3,6 +3,7 @@ extern crate proc_macro;
 use proc_macro::{TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn;
+use system::derive_resource_system;
 
 mod component;
 mod system;
@@ -76,7 +77,13 @@ pub fn system_derive(input: TokenStream) -> TokenStream {
 /// ### Example:
 /// 
 /// ```
-/// struct 
+/// #[derive(Component)]
+/// struct Position {
+///     x: f32,
+///     y: f32
+/// }
+/// // The position component can now be registered in a world
+/// // and be used.
 /// ```
 ///
 #[proc_macro_derive(Component)]
@@ -85,9 +92,16 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
     component::derive_component(ast)
 }
 
+#[proc_macro_derive(Resource)]
+pub fn resource_derive(input: TokenStream) -> TokenStream {
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    derive_resource_system(ast)
+}
+
 
 #[proc_macro_derive(ECSBase)]
 pub fn base_derive(input: TokenStream) -> TokenStream {
     let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
     base::derive_base(&mut ast).to_token_stream().into()
 }
+

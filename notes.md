@@ -19,6 +19,10 @@
 
 - Do we want to allow entities to be attached to other entities? Probably not.
 
+- We may want functional systems in the design. These allow us to have some advantages
+    - It highly decouples logic containers across the codebase, which helps us keep code modularized
+    - It optimizes execution since now only functions which contain logic can be executed instead of each flow of each system (in the older design, even if the flow handler had no code to be executed, the derive for every system had to manually go through each dynamically dispatched system, which is highly wasteful )
+
 - Systems registered in the App currently handle a single type of component. We might want to define interactive systems as well where 2 different type of components can interact. These types of systems will generally need to be initiated once the updation cycle for the individual components has been completed.
     - Based on this analysis, we can have 2 types of systems
         1. Interactive systems (Take 2 or maybe more different types of components in handling functions)
@@ -40,31 +44,7 @@
 
 
 
-# OUTDATED QUESTIONS
-
-### Is this System responsible for keeping coordination between the component and the entity to which it is attached?
-
-This question has 2 potential solutions I can think of right now. The first is something where both the entity system and component system keep a record of the number of components attached to an entity, and both operate independently to update their own record.
-The flaw in this design is that I might actually not have the need to keep the record of components in the entity system (I don't even know for sure if there is really a need for an entity system)
-
-### Why do we need an Entity System?
-
-- To keep track of what components are attached to an entity.
-- Entity creation and management api
-    1. create entity
-    2. attach components to entities
-    
-- Catch entity events? (What exactly are events in this?)
-- For establishing a system where 2 components in a single entity can communicate with one another.
-    - Component communication should happen through events for an entity.
-    - Entity system should be responsible for launching as well as handling events.
-    - Events must be able to be launched by the Component Handler as well. (This is how a component will be able to initiate events)
-
-
-
-
-
-# VALID QUESTIONS
+# QUESTIONS
 
 ### What does a System do?
 
@@ -72,49 +52,13 @@ The flaw in this design is that I might actually not have the need to keep the r
  
 ### How do we ID entities [Unanswered]
 
-A few ways to do this. 
-- First is that we can try to generate uuid for the entity. The flaw with this is that the uuid is a 128 bit struct, which might increase the memory cost
-- The second option is that we can put a serial generator in the EntityManger structure. The flaw with this approach might come when we want to work on multiple threads, as the serial generator will not be locally cached in the cache row, which could lead to serious performance hits due to consistency.
-
-Going for a hardware dependent option is a better approach in this case since it will free us of some metadata present in the EntityManager, not to mention the option for us to generate entities in parallel units.
-Although, thinking about this more, I realise that the entity manager is a single object in a world, which has to be accessed by all parallel units anyways. So since there is a single point of control anyways, it might not make much sense to do this. 
-But if we make id generation dependent on local units, the sync overhead might be minimized.
-
-
-### Why can't we attach system (handlers) to the component managers
-
-The system needs the following attributes as argument into its methods for proper functioning
-- Owner World's API access.
-- List of components of similar type for handling interactions.
-- entity_id access for the owner entity.
-- current component to be acted on
-
-Now, if system is bounded into the component manager, the world API would end up containing the managers. This leads to a problem where we are unable to pass the parent structure as an argument in the member functions because the `&mut self` cannot have multiple instances.
-If we try to solve this using just `self`, we still run into another issue where we are still not able to pass the `World` into the member function because `self` is partially decomposed (because we accessed entity_manager), hence the world struct is not bound to be valid.
-
-The solution to this problem is to distinctly seperate out the state of the world from its logic, and pass the state into the logic during updates
+We create `EntityId`s using the concept of generational indexes (see reference for more), which allows us to reuse existing spots in the entity array without clashing with the old id.
 
 
 
 
 
 
-## Exploring the problem encountered in the vulkan-engine
-ECS framework defined should help us to get better modularity in the project.
-One of the current problems that I was facing was not able to attach a Renderer to the VulkanInstance after constructing the instance. The reason that was happening was that the renderer required references to data in the vulkan instance struct, since vulkan instance contained several global parameters necessary for all rendering processes (such as swapchain images, framebuffer indexes, logical device, etc).
-
-This is because we cannot really store a reference to the vulkan instance object in the renderer because we cannot define a lifetime for it.
-Furthermore, we are also not able to pass the entire instance object reference in the render() function call because we are storing the vulkan renderer inside the vulkan instance, and calling a method on the renderer partially borrows the instance object, hence the instance object cannot really be passed into the renderer. Hence, we run into this cyclic issue which is difficult to solve.
-
-The problem in this scenario is high coupling of data and logic. If we take a step back and think about the goal of each component, we can simplify the components as  `VulkanInstance` containing the state of the vulkan instance, and the `DeferredRenderer` being a logical component which provides output as a function of an input which is this vulkan state. 
-However, rust borrow checker forces us to design programs with modularity, which we are not doing by enclosing the renderer in the vulkan state itself.
-
-Hence to solve this, we can take advantage of the ECS system that we have created to generalize this plugin pattern for all coupling problems. 
-In this case, we can think of both state (VulkanInstance) and renderer and the renderer as 2 different components (actually resource because we only have single instance of the 2 things, but we'll implement that in the future in the ECS framework) where renderer is updated by taking this vulkan state as an input.
-
-The problem that is gonna arise is that some changes in the vulkan state might need to trigger a change to resource. In this sense, these are dependent resource, hence we actually need an event system in the ECS system, which can automatically launch handlers for dependent resources.
-If Resource B is dependent on Resource A, then any change to resource A should launch a handler on Resource B, which can change resource B as it sees fit by looking at the Resource A in the system. 
-(This will have to be implemented using the event system. An event can have type arguments which defines anchor and dependent resources. Any change to the anchor resource should hence push an event with that resource as an anchor, and then the event should be processed with the anchor and dependent resource as parameter to the handler) 
 
 # Resources
 Resources are just components in the world which do not have any parent entity. These 'resources' will have to be identified by a special `ResourceId` since they do not have any parents.
@@ -124,25 +68,96 @@ Just like components can be fetched using the id of the entity they are attached
 We also need to keep checks in place to ensure that there are not more than one instance of a single resource type.
 
 
-# Implementing the Event System
+# Implementing the Event System (Heavily inspired by Bevy)
 ### Creating Interface:
 1. The Event system interface can simply be a function that can be called on the world type to push a event on the world. This event can then be processed in the next update cycle of the ECS system.
 
-2. The events can be send into the ECS system through EventReaders and EventWriters (similar to bevy), but I need to assess the benefits of this approach. One possible benefit of this system is that we may access the event buffer in the world across different threads, but we would anyways need a lock mechanism to push the event on the world event buffer.
+2. The events can be send into the ECS system through EventReaders and EventWriters (similar to bevy).
+
+
+
+
+
 
 ### Processing Events Internally.
+Following is the plan to implement the Event system
+- An `Event<E>` schema will contain:
+    - TypeId of user event struct
+    - user event in a Box structure
+- Event will be created by `EventManager`, which will contain all events of the frame.
+- `EventManager` will flush the events after the update call.
+- `EventManager` will contain events in 2 storages:
+    - **events in previous frame:** These are events that might have been launched in the frame of the previous update, or are events that might have been launched by the event handler in the previous frame. This is the vector that will be processed in the current frame, and the one which `EventReader<E>` will read from.
+    - **events in current frame:** These are events that are being generated in the current update function or event handler and will get processed in the next frame. This is the vector that `EventWriter<E>` will write events to.
+
+- `EventReader<E>` is like an iterator, a structure which acts like it owns the data but really doesn't (will contain a `PhantomData<E>` field). This is a structure which will only contain a reference of the world event Vec to read events from and fetch events based on the TypeId of `E`
+
+- `EventReader<E>` will enable events to be read across several event handlers at the same time concurrently (HOW?: Event trait can be Send + Sync (How will that help?)) because the array that is read is different from the array that is written to. Since `EventReader<E>` only reads the vector, it can be accessed from multiple threads.
+
+- User can create handler events by function schema: 
+
+```
+        fn name(event: EventReader<E>) {
+            ...
+        }
+```
+
+
 Some things to think about are
-- Do we need all the components to handle a all types of events, or do we need to specify information in the Event schema to define the dependencies?
-- Dependencies will have a sender and a receiver, so how do we enforce the type of the sender (through derive implementations)
-- How do we prevent the user from creating cyclic dependencies of component types?
-- What metadata do we need to keep in the Event Schema regarding the event? 
-- Do we allow user to put in custom user data in their Custom Events? If so, how do we get the type definition at the user end to convert them into valid types? 
-    - (derive implementations).
-    - Resource definitions - Resources are literally single existing data, so we may allow the user to attach a resource type trait to the event, and we can define the resource derive macro to extract data from the resource in the right format (with carefully cut out safety) and pass the user data into the handlers.
+
+##### Do we need all the components to handle a all types of events, or do we need to specify information in the Event schema to define the dependencies?
+**Ans.** This question is invalid now. The flaw in previous design was that the component systems and events are 2 different components, and hence they cannot be coupled without facing huge design issues. We are changing the system API to be functional, giving us high modularity, and in this system event handlers will be seperate Systems in themselves.
+
+##### Dependencies will have a sender and a receiver, so how do we enforce the type of the sender
+**Ans.** We dont really have dependencies in the new model. Events will be created and read by handling functions through thread safe structures (EventReaders and EventWriters)
+
+##### How do we prevent the user from creating cyclic dependencies of component types?
+**Ans.** Again, no longer possible in the new system since the event handling function is a seperate system and does not have the concept of dependencies (Events launched in the event hanbd)
+
+##### What metadata do we need to keep in the Event Schema regarding the event? 
+**Ans.** None really, we only need the type id of the Event being stored, which could just be a function in the base Event trait which could be implemented at runtime by a simple derive.
+
+##### Do we allow user to put in custom user data in their Custom Events? If so, how do we get the type definition at the user end to convert them into valid types? 
+**Ans.** In the new model, custom data by the user is an inherent trait really. the `EventReader<E>` is going to read only events of type `E` and the `event_reader.read_events()` function will return the event 
+
+##### How do we handle events launched in the event handler function?
+
+
+
 
 Processing events should involve the following steps.
-1. We can have a Event trait with type definitions. These type definitions can then be checked by a bool function, and we supply the event to the system only if the the input type is the incoming event. This way not every system will need to deal with every event, removing the load of parsing events on the user side and saving execution time.
+1. We can have an Event trait with type definitions. These type definitions can then be checked by a bool function, and we supply the event to the system only if the the system's input type is the same as the type mentioned in the incoming event. This way not every system will need to deal with every event, removing the load of parsing events on the user side and saving execution time. But this will only work for component specific events.
+What we really need to do is actually get all the systems with functions taking in the event type. Problem is right now we are storing systems as structs, hence we cannot really create arbituary functions and plug them in the world and find the functions with the required parameter type. (The question is can we even do that with Fn traits?)
+
+I think this is again a problem of coupling 2 unrelated components of the system. The thing is that events and component systems are 2 different design flows, and a component system should not be responsible for handling event flows. If an event is generated, a event system should be created to handle the event. This event handling logic should not be specific to a component or a resource, although this event logic should be capable of modifying components or resources in the world, hence we should allow user data to be attached on events to enable the user to attach custom data to the events that they create.
+
+
 (Think more about how this will sit in play with the entire system.)
+
+
+
+
+
+
+
+# Schedule system
+In this ECS system, we have defined `flow`s which can be initiated by the App interface to update the state of the world. These flows are defined by different type of systems, however the number of flows are fixed (for now, we might want a way to make this arbituary). Each of the flow is initiated by a function defined in the `BaseSystem` trait and is implemented by the derive call to a type of system.
+
+For scheduling, each of the flow defined in the App interface has to have a seperate scheduling graph, which defines a node as a executor function and dependency systems. This way we can parallelize execution of independent systems to achieve better performance.
+
+
+
+
+
+# Independent Flows
+Currently, the different flows are hardcoded in the App interface and correspondingly in the `BaseSystem` interface as well. The base system interface then calls the appropriately named function in the trait definition to process the flow. We may want to make this process of flow definition an invariable thing by declaring each flow as a trait, and then each inteface function in the `Flow` trait would call the appropriate function in the struct implementation.
+
+The main question here is that do we really need this at all? Are we really going to have a variable number of flows or are we going to pre define it for our frame based requirement?
+Defining custom flow might help us take a step towards applying the ECS systems to projects other than games where we can define the flow of our tasks explicitly. 
+
+These flows can then be scheduled independently based on a defined criteria.
+
+
 
 
 

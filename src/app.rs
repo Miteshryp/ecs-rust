@@ -77,11 +77,9 @@ impl App {
         self.world_container
             .get_world_mut()
             .register_component::<<Sys as ComponentSystem>::ComponentType>();
-        // self.world.borrow_mut().register_component::<<Sys as ComponentSystem>::ComponentType>();
     }
 
-    // @TODO: Add different types of systems
-    // @TODO: Add schedules functionality
+    // @TODO: Add schedules functionality for each flow
 
     // @TODO: Write documentation
     pub fn start(&mut self) {
@@ -103,6 +101,12 @@ impl App {
     pub fn update(&mut self) {
         for system in &mut self.systems {
             system.process_update(&mut self.world_container);
+        }
+    }
+
+    pub fn process_events(&mut self) {
+        for system in &mut self.systems {
+            system.process_events(&mut self.world_container);
         }
     }
 }

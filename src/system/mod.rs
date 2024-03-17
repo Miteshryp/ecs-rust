@@ -5,18 +5,40 @@ use std::{
 };
 
 use crate::{
-    entity::{Entity},
-    world::{UnsafeWorldContainer, World, WorldArg},
+    component::resource::{Resource, ResourceId}, entity::Entity, event::ECSevent, world::{UnsafeWorldContainer, World, WorldArg}
 };
 
 pub trait BaseSystem {
-    // fn as_any(&self) -> &dyn Any;
-    // fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    fn process_update(&mut self, world: &mut UnsafeWorldContainer);
-    fn process_start(&mut self, world: &mut UnsafeWorldContainer);
+    // System flows (Accessed by the App interface)
+    fn process_update(&mut self, world: &mut UnsafeWorldContainer) {}
+    fn process_start(&mut self, world: &mut UnsafeWorldContainer) {}
+    fn process_events(&mut self, world: &mut UnsafeWorldContainer) {}
 }
 
+pub trait ResourceSystem {
+    type ResourceType;
+
+    fn initialise(&self, world: &mut WorldArg) -> Self::ResourceType {
+        todo!();
+    }
+
+    fn on_start(&self, world: &mut WorldArg) {
+    }
+
+    fn on_update(&self, world: &mut WorldArg, resource_id: &mut Self::ResourceType) {
+
+    }
+
+    fn handle_event<E: ECSevent>() {
+
+    }
+}
+
+
+
+/// System interface for handling components.
+/// 
 pub trait ComponentSystem {
     /// This is the type of the specific component that the system is
     /// supposed to handle
