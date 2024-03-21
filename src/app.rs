@@ -2,7 +2,11 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     component::Component,
-    system::{BaseSystem, ComponentSystem},
+    ecs_base::ECSBase,
+    system::{
+        base::{System, SystemFunction},
+        SystemHolder,
+    },
     world::{UnsafeWorldContainer, World},
 };
 
@@ -39,14 +43,17 @@ use crate::{
 /// ```
 pub struct App {
     world_container: UnsafeWorldContainer,
-    systems: Vec<Box<dyn BaseSystem>>,
+    // systems: Vec<Box<dyn BaseSystem>>,
+    // systems: Vec<dyn FnMut(&mut World, dyn SystemParam)>,
 }
+
+pub trait SystemParam {}
 
 impl App {
     pub fn new() -> Self {
         App {
             world_container: UnsafeWorldContainer::new(),
-            systems: vec![],
+            // systems: vec![],
         }
     }
 
@@ -64,49 +71,56 @@ impl App {
     /// we allow the user to allocate the system themselves.
     /// If this feature turns out to be redundant, we might remove the
     /// need for manual allocation.
-    pub fn add_component_system<Sys>(&mut self, system: Sys)
-    where
-        Sys: BaseSystem + ComponentSystem + 'static,
-        <Sys as ComponentSystem>::ComponentType: Component + 'static,
-    {
-        self.systems.push(Box::new(system));
+    // pub fn add_component_system<Sys>(&mut self, system: Sys)
+    // where
+    //     Sys: BaseSystem + ComponentSystem + 'static,
+    //     <Sys as ComponentSystem>::ComponentType: Component + 'static,
+    // {
+    //     self.systems.push(Box::new(system));
 
-        // SAFETY:
-        // This is the only existing reference to the world in the given scope,
-        // hence there is no violation.
-        self.world_container
-            .get_world_mut()
-            .register_component::<<Sys as ComponentSystem>::ComponentType>();
+    //     // SAFETY:
+    //     // This is the only existing reference to the world in the given scope,
+    //     // hence there is no violation.
+    //     self.world_container
+    //         .get_world_mut()
+    //         .register_component::<<Sys as ComponentSystem>::ComponentType>();
+    // }
+
+    pub fn add_system<T, Marker>(&mut self, system: T)
+    where
+        T: SystemFunction<Marker>,
+    {
+        let sys: Box<dyn System> = Box::new(SystemHolder::new(system));
     }
 
     // @TODO: Add schedules functionality for each flow
 
     // @TODO: Write documentation
-    pub fn start(&mut self) {
-        for system in &mut self.systems {
-            system.process_start(&mut self.world_container);
-        }
+    // pub fn start(&mut self) {
+    //     for system in &mut self.systems {
+    //         system.process_start(&mut self.world_container);
+    //     }
 
-        // SAFETY: This is the only exisiting reference to the world in
-        //      current scope, hence the safety rules ensure. The mutable
-        //      reference to the world is lost before getting the immutable
-        //      reference to the world again in the following line.
-        self.world_container.get_world_mut().set_active(true);
-        while self.world_container.get_world().is_active() {
-            self.update();
-        }
-    }
+    //     // SAFETY: This is the only exisiting reference to the world in
+    //     //      current scope, hence the safety rules ensure. The mutable
+    //     //      reference to the world is lost before getting the immutable
+    //     //      reference to the world again in the following line.
+    //     self.world_container.get_world_mut().set_active(true);
+    //     while self.world_container.get_world().is_active() {
+    //         self.update();
+    //     }
+    // }
 
-    /// Calls the update process on all the systems in the App.
-    pub fn update(&mut self) {
-        for system in &mut self.systems {
-            system.process_update(&mut self.world_container);
-        }
-    }
+    // /// Calls the update process on all the systems in the App.
+    // pub fn update(&mut self) {
+    //     for system in &mut self.systems {
+    //         system.process_update(&mut self.world_container);
+    //     }
+    // }
 
-    pub fn process_events(&mut self) {
-        for system in &mut self.systems {
-            system.process_events(&mut self.world_container);
-        }
-    }
+    // pub fn process_events(&mut self) {
+    //     for system in &mut self.systems {
+    //         system.process_events(&mut self.world_container);
+    //     }
+    // }
 }

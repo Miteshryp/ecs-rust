@@ -1,72 +1,46 @@
-use std::{
-    any::Any,
-    cell::{RefCell, RefMut},
-    rc::Rc,
-};
+pub mod base;
+pub mod param;
 
-use crate::{
-    component::resource::{Resource, ResourceId}, entity::Entity, event::ECSevent, world::{UnsafeWorldContainer, World, WorldArg}
-};
+use std::marker::PhantomData;
 
-pub trait BaseSystem {
+use crate::world::UnsafeWorldContainer;
+use self::base::{System, SystemFunction};
 
-    // System flows (Accessed by the App interface)
-    fn process_update(&mut self, world: &mut UnsafeWorldContainer) {}
-    fn process_start(&mut self, world: &mut UnsafeWorldContainer) {}
-    fn process_events(&mut self, world: &mut UnsafeWorldContainer) {}
+
+/// Structure to hold an arbituary type of system function
+pub struct SystemHolder<Marker, Func>
+where
+    Func: SystemFunction<Marker>,
+{
+    pub(crate) func: Func,
+    pub(crate) _marker: PhantomData<Marker>,
 }
 
-pub trait ResourceSystem {
-    type ResourceType;
-
-    fn initialise(&self, world: &mut WorldArg) -> Self::ResourceType {
-        todo!();
-    }
-
-    fn on_start(&self, world: &mut WorldArg) {
-    }
-
-    fn on_update(&self, world: &mut WorldArg, resource_id: &mut Self::ResourceType) {
-
-    }
-
-    fn handle_event<E: ECSevent>() {
-
+impl<Marker, Func> SystemHolder<Marker, Func> where Func: SystemFunction<Marker>{
+    pub fn new(system: Func) -> Self 
+    {
+        Self {
+            func: system,
+            _marker: std::marker::PhantomData
+        }
     }
 }
 
+// The issue here is that the marker and func trait are going to be arbituary
+// based on the type of system being inserted in the App, so we cannot
+// directly store this structure in the App struct.
+//
+// Hence we need this struct to implement another type, and that type can be dynamically
+// dispatched and stored in a box in App. This type makes sense to be system since,
+// well it is.
 
 
-/// System interface for handling components.
-/// 
-pub trait ComponentSystem {
-    /// This is the type of the specific component that the system is
-    /// supposed to handle
-    type ComponentType;
 
-    /// The update function is called on every component on every update cycle
-    fn on_update(
-        &self,
-        world: &mut WorldArg,
-        entity_id: Entity,
-        component: RefMut<'_, Self::ComponentType>,
-    ) {
+impl<Marker, Func> System for SystemHolder<Marker, Func>
+where
+    Func: SystemFunction<Marker>,
+{
+    fn run_system(&mut self, world_container: &UnsafeWorldContainer) {
+        self.run_system(world_container)
     }
-    fn on_start(&self, world: &mut WorldArg) {}
-}
-
-pub trait InteractiveSystem {
-    type ComponentA;
-    type ComponentB;
-
-    type EventLaunch;
-
-    fn check_interaction(
-        &self,
-        world: Rc<RefCell<World>>,
-        eid_a: Entity,
-        eid_b: Entity,
-        component_a: &Self::ComponentA,
-        component_b: &Self::ComponentB,
-    );
 }

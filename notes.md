@@ -45,12 +45,8 @@
 
 
 # QUESTIONS
-
-### What does a System do?
-
-1. In laymens terms, we can say that system is something that updates a component. It defines the behavior for updating component data and handling interaction between components of similar types.
  
-### How do we ID entities [Unanswered]
+### How do we ID entities
 
 We create `EntityId`s using the concept of generational indexes (see reference for more), which allows us to reuse existing spots in the entity array without clashing with the old id.
 
@@ -68,7 +64,47 @@ Just like components can be fetched using the id of the entity they are attached
 We also need to keep checks in place to ensure that there are not more than one instance of a single resource type.
 
 
-# Implementing the Event System (Heavily inspired by Bevy)
+
+# Functional Systems
+### Design
+- A functional system is any function defined in the scope whose parameters implement the `SystemParam` type.
+
+- These `SystemParam`s are actually just extractors of state values from a world instance.
+
+- These `extractor` parameters are going to be declared by ECS system and can be used by the user to extract state data from the assigned world to be used in a system function.
+
+### Flow
+
+- Any function declared with compatible parameter fields is extended by the ECS system by implementing the `SystemFunction` trait for it.
+
+- This `SystemFunction` trait adds a `run()` method to the function, hence when the function is passed into a function, it can have this run method.
+
+- The `SystemFunction` uses the world pointer to create  `SystemParam` extractor fields based on the function declaration. This is done using the `init` method in the `SystemParam` trait.
+
+- `SystemParam` trait will have a init method which will take in a `&mut World` type to get full and free access into the way (We may change the type to `&World` if we do not need to call a mut function)
+
+
+
+
+- But this `SystemFunction` is not stored as a raw type (since the type of function is not really deterministic since it is determined by the parameters that the user defined, due to which we cannot directly create a vector and store it), but is rather going to be stored in a `FunctionHolder`, which will implement a `System` type, using which I can execute the system later with appropriate fields 
+(TODO: Details of this need to be worked out)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# The Event System (Heavily inspired by Bevy)
 ### Creating Interface:
 1. The Event system interface can simply be a function that can be called on the world type to push a event on the world. This event can then be processed in the next update cycle of the ECS system.
 

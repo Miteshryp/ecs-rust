@@ -19,3 +19,20 @@
 - Potentially better modularity (Functions are not coupled together, which could benefit us in future designs)
 - Gives us ability to define custom flows easily (Only need to declare a flow initiating function, and add it to the world.) 
 -   
+
+
+
+# Bevy Functional Systems
+- `(increase_counter, print_counter)` -> Implements IntoSystemConfig<Marker>, which has into_configs function
+- `(increase_counter, print_counter)` -> Implements IntoSystem<In, Out, Marker>
+- `(increase_counter, print_counter)` -> Implements System
+    
+- `SystemParamFunction` is implemented for `FnMut`, `Fn`, [function_system.rs, line 620, 634]
+- `FunctionSystem` is a struct which stores a system function
+- `into_system` function creates and returns a `FunctionSystem` struct, which stores a `SystemParamFunction` field, which is the function that we supplied
+- this is getting called while creating system configs in into_configs function.
+
+- `SystemParamFunction` implements the `System` trait as well to inherit basic system properties [function_system.rs, line 443]
+- `func.run` is called to execute the funtion. This run is executed in the 
+
+- `into_configs` -> gives system configs
