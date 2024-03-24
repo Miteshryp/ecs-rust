@@ -4,7 +4,7 @@ use std::{
     any::TypeId,
     borrow::{Borrow, BorrowMut},
     cell::{Cell, RefCell, RefMut},
-    collections::HashMap,
+    collections::HashMap, sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use crate::{
@@ -14,8 +14,8 @@ use crate::{
         Component,
     },
     entity::{entity_manager::EntityManager, Entity},
-    events::event_manager::EventManager,
-    system::param::{EventReader, EventWriter},
+    events::{event_manager::EventManager, Event},
+    system::param::{EventReader, EventWriter, MutResourceHandle},
 };
 
 /// ### World struct
@@ -55,8 +55,8 @@ pub struct World {
     event_manager: EventManager,
 
     /// Resources present in the world
-    // resources: HashMap<ResourceId, Box<RefCell<dyn Resource>>>,
-    resources: HashMap<ResourceId, Box<dyn Resource>>,
+    // resources: HashMap<ResourceId, Box<dyn Resource>>,
+    resources: HashMap<ResourceId, RwLock<Box<dyn Resource>> >,
 }
 
 /// Private member implementations
@@ -180,48 +180,20 @@ impl World {
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
         assert!(!self.resources.contains_key(&R::get_type()));
 
-        // self.resources
-        //     .insert(R::get_type(), Box::new(RefCell::new(resource)));
-
-        self.resources.insert(R::get_type(), Box::new(resource));
+        // self.resources.insert(R::get_type(), Box::new(resource));
+        self.resources.insert(R::get_type(), RwLock::new(Box::new(resource)));
     }
 
-    // pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> &mut R {
-    //     assert!(self.resources.contains_key(&R::get_type()));
-    //     self.resources
-    //         .get_mut(&R::get_type())
-    //         .unwrap()
-    //         .get_mut()
-    //         .as_any_mut()
-    //         .downcast_mut::<R>()
-    //         .unwrap()
-    // }
-
-    // pub fn get_resource<R: Resource + Sized + 'static>(&self) -> &R {
-    //     assert!(self.resources.contains_key(&R::get_type()));
-    //     let mut boxed = self.resources.get(&R::get_type()).unwrap();
-
-    //     boxed.get_mut().as_any().downcast_ref().unwrap()
-    // }
-
-    pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> &mut R {
-        assert!(self.resources.contains_key(&R::get_type()));
-        self.resources
-            .get_mut(&R::get_type())
-            .unwrap()
-            .as_any_mut()
-            .downcast_mut::<R>()
-            .unwrap()
+    /// Returns a Write Guard to a resource in the world
+    /// @SAFETY: The returned guard is supplied in a Box, which can be 
+    /// handled by the user manually if required, but in any such case (MutResourceHandle),
+    /// the proper release of the lock is a must for smooth operation.
+    pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Box<RwLockWriteGuard<'_, Box<dyn Resource>>> {
+        Box::new(self.resources.get(&R::get_type()).unwrap().write().unwrap())
     }
-
-    pub fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> &R {
-        assert!(self.resources.contains_key(&R::get_type()));
-        self.resources
-            .get(&R::get_type())
-            .unwrap()
-            .as_any()
-            .downcast_ref::<R>()
-            .unwrap()
+    
+    pub fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Box<RwLockReadGuard<'_, Box<dyn Resource>>> {
+        Box::new(self.resources.get(&R::get_type()).unwrap().read().unwrap())
     }
 
     ///
@@ -348,11 +320,15 @@ impl World {
 }
 
 impl World {
-    pub(crate) fn get_event_reader(&self) -> EventReader {
+    // @WARNING @IMPORTANT
+    // @SAFETY: If parallel systems try to create an event reader for the same event type
+    // which hasn't been used previously, it may cause trouble to create the vector for the 
+    // event type
+    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> EventReader<E> {
         self.event_manager.get_reader()
     }
 
-    pub(crate) fn get_event_writer(&self) -> EventWriter {
+    pub(crate) fn get_event_writer(&mut self) -> EventWriter {
         self.event_manager.get_writer()
     }
 }

@@ -73,6 +73,19 @@ We also need to keep checks in place to ensure that there are not more than one 
 
 - These `extractor` parameters are going to be declared by ECS system and can be used by the user to extract state data from the assigned world to be used in a system function.
 
+### Critical issue regarding parallel systems
+
+Currently, all the `SystemParam`s that need to be passed into a system are being initialised everytime run is called on the system, which means that all `SystemParam`s initialise every frame.
+
+But this could also cause trouble leading to data race conditions.
+(2 `EventReader<E>`s creating an empty vector for the same type in the `EventManager`) (This is a non-catastrophic thing, but worse things could happen)
+However, we cannot really create a RwLock on the world, since that would essentially force the entire design to be sequential, since the initialise function requires a `&mut World`, and that would require every system to secure a lock to the world before execution, hence essentially making the system sequential.
+To solve this, we have to allow multiple `&mut World`s, but we have to ensure that the internal state remains consistent throughout, meaning that if 2 systems are accessing the same resource, they should be `relatively sequential`
+
+
+
+
+
 ### Flow
 
 - Any function declared with compatible parameter fields is extended by the ECS system by implementing the `SystemFunction` trait for it.

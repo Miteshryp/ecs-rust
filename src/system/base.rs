@@ -5,7 +5,7 @@ use ecs_macros::implement_tuples;
 
 use crate::{
     ecs_base::ECSBase,
-    world::{UnsafeWorldContainer, World},
+    world::{World, unsafe_world::UnsafeWorldContainer},
 };
 
 use super::SystemHolder;

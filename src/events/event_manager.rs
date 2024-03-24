@@ -54,10 +54,27 @@ impl EventManager {
     }
 
 
-    
-    pub fn get_reader (&self) -> EventReader<'_> {
-        EventReader {
-            manager: &self
+    pub fn get_reader<E: Event + 'static>(&mut self) -> EventReader<E> {
+        // EventReader {
+        //     manager: &self
+        // }
+
+        if let Some(event_vec) = self.events.get(&E::type_id()) {
+            EventReader {
+                reader: event_vec,
+                _marker: std::marker::PhantomData
+            }
+        } else {
+            // @ERROR
+            // @TODO: This line potentially creates conflict in a parallel
+            // system (When 2 different system try to read resource which does not exists,
+            // It may end up in 2 insert operations. Although at the end only a new empty vec
+            // should be inserted, it is still a potential threat.)
+            self.events.insert(E::type_id(), vec![]);
+            EventReader {
+                reader: self.events.get(&E::type_id()).unwrap(),
+                _marker: std::marker::PhantomData
+            }
         }
     }
 
@@ -70,7 +87,7 @@ impl EventManager {
 
 
 impl EventManager {
-    pub(crate) fn get_event_vec<E: Event>(&self) -> Option<Iter<'_, Box<dyn Event>>> {
+    pub(crate) fn get_event_vec<E: Event + 'static>(&self) -> Option<Iter<'_, Box<dyn Event>>> {
         if let Some(event_vec) = self.events.get(&TypeId::of::<E>()) {
             Some(event_vec.iter())
         } else {

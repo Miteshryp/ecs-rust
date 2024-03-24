@@ -3,7 +3,7 @@ pub mod param;
 
 use std::marker::PhantomData;
 
-use crate::world::UnsafeWorldContainer;
+use crate::world::unsafe_world::UnsafeWorldContainer;
 use self::base::{System, SystemFunction};
 
 

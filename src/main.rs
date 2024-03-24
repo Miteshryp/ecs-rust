@@ -10,16 +10,17 @@ use app::App;
 use component::{resource::Resource, Component};
 use ecs_base::ECSBase;
 // use ecs_macros::{Component, ComponentSystem, Resource};
-use ecs_macros::{Component};
+use ecs_macros::{Component, Event, Resource};
 use entity::Entity;
+use system::param::ResourceHandle;
 use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     rc::Rc,
 };
 // use system::{BaseSystem, ComponentSystem, ResourceSystem};
-use world::{UnsafeWorldContainer, World, WorldArg};
-
+use world::{ World};
+use crate::events::Event;
 use crate::system::{base::{System, SystemFunction}, SystemHolder};
 
 // Testing code
@@ -81,6 +82,11 @@ struct NewComponent {
 // }
 
 
+#[derive(Event)]
+struct SampleEvent {
+    i: i32
+}
+
 fn test_function(k: i32) -> f32 {
     k as f32 / 2.4
 }
@@ -90,5 +96,13 @@ fn own_function(sys: impl System) {
     println!("Yes the function is of valid structure")
 }
 
+#[derive(Resource)]
+struct SampleResource {
+    i: i32
+}
+
 fn main() {
+    let mut world = World::new();
+    let res = SampleResource {i:32};
+    world.add_resource(res);
 }

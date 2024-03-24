@@ -7,7 +7,7 @@ use crate::{
         base::{System, SystemFunction},
         SystemHolder,
     },
-    world::{UnsafeWorldContainer, World},
+    world::{unsafe_world::UnsafeWorldContainer, World},
 };
 
 /// ### ECS App

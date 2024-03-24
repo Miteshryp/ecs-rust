@@ -8,6 +8,8 @@ use utils::AllTuples;
 
 mod base;
 mod component;
+mod resource;
+mod event;
 mod system;
 mod utils;
 
@@ -94,17 +96,24 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
     component::derive_component(ast)
 }
 
-// #[proc_macro_derive(Resource)]
-// pub fn resource_derive(input: TokenStream) -> TokenStream {
-//     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-//     derive_resource_system(ast)
-// }
+#[proc_macro_derive(Resource)]
+pub fn resource_derive(input: TokenStream) -> TokenStream {
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    resource::derive_resource(ast)
+}
+
+#[proc_macro_derive(Event)]
+pub fn event_derive(input: TokenStream) -> TokenStream {
+    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    event::derive_event(ast)
+}
 
 #[proc_macro_derive(ECSBase)]
 pub fn base_derive(input: TokenStream) -> TokenStream {
     let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
     base::derive_base(&mut ast).to_token_stream().into()
 }
+
 
 #[proc_macro]
 pub fn implement_tuples(input: TokenStream) -> TokenStream {
