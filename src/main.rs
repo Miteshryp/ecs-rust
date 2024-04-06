@@ -87,13 +87,9 @@ struct SampleEvent {
     i: i32
 }
 
-fn test_function(k: i32) -> f32 {
-    k as f32 / 2.4
-}
 
-
-fn own_function(sys: impl System) {
-    println!("Yes the function is of valid structure")
+trait SampleTrait {
+    fn print(&self);
 }
 
 #[derive(Resource)]
@@ -101,8 +97,43 @@ struct SampleResource {
     i: i32
 }
 
+impl SampleTrait for SampleResource {
+    fn print(&self) {
+        println!("{}", self.i);
+    }
+}
+
+fn test_function(arg: impl SampleTrait) {
+    arg.print();
+}
+
+fn param_func(t: (i32, i32)) {
+
+}
+
+struct S1 {
+
+}
+
+struct S2 {
+
+}
+
+
+impl SampleTrait for (S1, S2) {
+    fn print(&self) {
+    }
+}
+
+
 fn main() {
     let mut world = World::new();
     let res = SampleResource {i:32};
     world.add_resource(res);
+
+    let res = SampleResource { i: 51 };
+    let res2 = SampleResource { i: 51 };
+    // test_function((res, res2));
+    // let t = (2,3).;
+    
 }

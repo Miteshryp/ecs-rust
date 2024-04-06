@@ -1,6 +1,6 @@
 use std::{any::TypeId, marker::PhantomData, sync::mpsc::Sender};
 
-use crate::{events::Event, world::World};
+use crate::{events::Event, world::{unsafe_world::UnsafeWorldContainer, World}};
 
 use super::SystemParam;
 
@@ -44,8 +44,10 @@ impl<E: Event + 'static> EventReader<E> {
 }
 
 impl<E: Event + 'static> SystemParam for EventReader<E> {
-    fn initialise(world: &mut World) -> Self {
-        world.get_event_reader()
+    fn initialise(world: *mut World) -> Option<Self> {
+        unsafe {
+            Some((*world).get_event_reader())
+        }
     }
 
     fn type_id() -> TypeId
@@ -72,7 +74,10 @@ impl EventWriter {
 }
 
 impl SystemParam for EventWriter {
-    fn initialise(world: &mut World) -> Self {
-        world.get_event_writer()
+    fn initialise(world: *mut World) -> Option<Self> {
+        unsafe {
+            Some((*world).get_event_writer())
+        }
+        // world.get_world_mut().get_event_writer()
     }
 }

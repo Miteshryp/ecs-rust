@@ -9,8 +9,9 @@ use std::{
     any::{Any, TypeId},
     borrow::Borrow,
     cell::{Ref, RefCell, RefMut},
-    collections::HashMap,
 };
+
+use hashbrown::HashMap;
 
 pub trait EcsManager: ECSBase {
     // /// As Any trait is implemented to facilitate downcasting
@@ -211,6 +212,7 @@ where
             "Component does not exist in the entity id: {:?}",
             entity_id
         );
+
 
         self.components
             .get(*self.entity_component_map.get(&entity_id).unwrap())

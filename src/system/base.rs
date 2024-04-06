@@ -1,14 +1,9 @@
-use std::any::TypeId;
-
 use super::param::SystemParam;
 use ecs_macros::implement_tuples;
 
 use crate::{
-    ecs_base::ECSBase,
-    world::{World, unsafe_world::UnsafeWorldContainer},
+    world::{unsafe_world::UnsafeWorldContainer},
 };
-
-use super::SystemHolder;
 
 pub trait System {
     fn run_system(&mut self, world_container: &UnsafeWorldContainer);
@@ -42,8 +37,32 @@ macro_rules! impl_system_function {
                     f($($param),*)
                 }
 
+                // Acquire acquisition atomic lock to initiate atomic acquisition
+                // of extractors
+                let atomic_lock = (*world.get_world_mut()).acquire_acquisition_lock();
+
                 // Create extractor instances for supplied extractor types.
-                $(let $param = $param::initialise(world.get_world_mut());)*
+                $(
+                    let $param = match $param::initialise(world.get_world_mut()) {
+                        Some(x) => x,
+
+                        // If any one of the extractor acquisition fails, we 
+                        // cleanup all the extractors which were successful by 
+                        // leaving the function. 
+                        // We also release the atomic lock to allow other 
+                        // systems to get extractors.
+                        None => {
+                            (world.get_world_mut()).return_acquisition_lock(atomic_lock);
+                            return;
+                        }
+                    };
+                )*
+
+                // All extractors initialised successfully. 
+                // Returning the lock for other systems to access the world for extraction.
+                world.get_world_mut().return_acquisition_lock(atomic_lock);
+
+                // Running the system
                 call_inner(self, $($param),*)
             }
         }

@@ -17,7 +17,7 @@ use std::{
 use crate::{
     component::resource::Resource,
     events::{event_manager::EventManager, Event},
-    world::World,
+    world::{unsafe_world::UnsafeWorldContainer, World},
 };
 
 
@@ -33,10 +33,17 @@ pub trait SystemParam {
         TypeId::of::<Self>()
     }
 
-    // We pass a mut reference of the World to ensure that if the initialisation
-    // requires a pointer access with safety guarentees, that may be facilitated.
-    // (We cannot get a pointer through &World)
-    fn initialise(world: &mut World) -> Self;
+    /// Interface to setup world extractor parameter to 
+    /// fetch World state for functional systems.
+    /// If the initialisation fails, it must return None to ensure
+    /// that the system does not execute, and the other dependencies required
+    /// by the system are freed by the world system to avoid resource starvation
+    /// in a parallel setting.
+    /// 
+    /// @NOTE: We need the mutable pointer to be passed in the initialise function.
+    ///     See [ResourceHandle] or [MutResourceHandle] docs for more info
+     
+    fn initialise(world: *mut World) -> Option<Self> where Self: Sized;
 }
 
 

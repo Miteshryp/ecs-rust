@@ -4,8 +4,10 @@ use std::{
     any::TypeId,
     borrow::{Borrow, BorrowMut},
     cell::{Cell, RefCell, RefMut},
-    collections::HashMap, sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
+
+use hashbrown::HashMap;
 
 use crate::{
     component::{
@@ -53,6 +55,11 @@ pub struct World {
     component_managers: HashMap<TypeId, Box<dyn EcsManager>>,
 
     event_manager: EventManager,
+
+    // Group lock mutexes for fetching state variable references from the world
+    acquisition_lock: std::sync::Mutex<u32>,
+    // _acquire_resources_lock: std::sync::Mutex<u32>,
+    // _acquire_components_lock: std::sync::Mutex<u32>,
 
     /// Resources present in the world
     // resources: HashMap<ResourceId, Box<dyn Resource>>,
@@ -130,6 +137,7 @@ impl World {
             component_managers: HashMap::new(),
             event_manager: EventManager::new(),
             resources: HashMap::new(),
+            acquisition_lock: Mutex::new(0)
         }
     }
 
@@ -188,12 +196,18 @@ impl World {
     /// @SAFETY: The returned guard is supplied in a Box, which can be 
     /// handled by the user manually if required, but in any such case (MutResourceHandle),
     /// the proper release of the lock is a must for smooth operation.
-    pub fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Box<RwLockWriteGuard<'_, Box<dyn Resource>>> {
-        Box::new(self.resources.get(&R::get_type()).unwrap().write().unwrap())
+    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<Box<RwLockWriteGuard<'_, Box<dyn Resource>>>> {
+        match self.resources.get(&R::get_type()).unwrap().write() {
+            Ok(x) => Some(Box::new(x)),
+            Err(_) => None,
+        }
     }
     
-    pub fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Box<RwLockReadGuard<'_, Box<dyn Resource>>> {
-        Box::new(self.resources.get(&R::get_type()).unwrap().read().unwrap())
+    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<Box<RwLockReadGuard<'_, Box<dyn Resource>>>> {
+        match self.resources.get(&R::get_type()).unwrap().read() {
+            Ok(x) => Some(Box::new(x)),
+            Err(_) => None
+        }
     }
 
     ///
@@ -306,6 +320,8 @@ impl World {
         system.borrow_component_mut(entity_id)
     }
 
+    
+
     pub fn update_event_state(&mut self) {
         self.event_manager.refresh_update();
     }
@@ -330,5 +346,19 @@ impl World {
 
     pub(crate) fn get_event_writer(&mut self) -> EventWriter {
         self.event_manager.get_writer()
+    }
+
+
+    pub(crate) fn acquire_acquisition_lock(&mut self) -> MutexGuard<'_, u32> {
+        match self.acquisition_lock.lock() {
+            Ok(guard) => guard,
+            Err(_) => panic!("World acquisition mutex poisoned"), // Should never happen
+        }
+    }
+
+    pub(crate) fn return_acquisition_lock(&mut self, guard: MutexGuard<'_, u32>) {
+        // The guard gets freed, and hence the lock is released on
+        // the acquisition_lock variable
+        drop(guard)
     }
 }

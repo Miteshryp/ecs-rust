@@ -1,4 +1,5 @@
-use std::{any::TypeId, collections::HashMap};
+use std::{any::TypeId};
+use hashbrown::HashMap;
 
 use crate::{
     component::{component_manager::ComponentManager, Component},

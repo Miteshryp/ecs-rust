@@ -1,106 +1,79 @@
-use std::{marker::PhantomData, ops::{Deref, DerefMut}, ptr::{null, null_mut}, sync::{RwLockReadGuard, RwLockWriteGuard}};
-use crate::{component::resource::Resource, world::World};
 use super::SystemParam;
+use crate::{component::resource::Resource, world::World};
+use std::{
+    marker::PhantomData,
+    sync::{RwLockReadGuard, RwLockWriteGuard},
+};
 
-
-pub struct ResourceHandle<'a, R: Resource + 'static>
+///
+///     @NOTE: We get a mutable pointer to the world as a input to the initialise method
+///     This is to facilitate RwLockGuard acquisition from the world for Resource
+///     handles. &mut World makes rust believe the returned guard does not have
+///     lifetime which lives long enough, so we fool the borrow checker this way
+///     to make it think that the reference is static.
+pub struct ResourceHandle<R: Resource + 'static>
 where
     R: Resource,
 {
-    world: *const World,
-    inner_guard: *mut RwLockReadGuard<'a, Box<dyn Resource>>,
+    inner_guard_box: Box<RwLockReadGuard<'static, Box<dyn Resource>>>,
     _marker: PhantomData<R>,
 }
 
-impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<'a, R> {
-    fn initialise(world: &mut World) -> Self {
-        Self {
-            world: world,
-            inner_guard: null_mut(), // Pointer to owned read guard
-            _marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<'a, R: Resource + 'static>  ResourceHandle<'a, R> {
-    pub fn get_resource(&mut self) -> &R {
-        // Acquiring owned read guard from the world
-        //
-        // @SAFETY: The guard is only returned by the world only  if no other
+impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
+    fn initialise(world: *mut World) -> Option<Self> {
+        // @SAFETY:
+        // 1. The world does not go out of scope (Otherwise we wouldn't be executing this function)
+        // 2. The guard is only returned by the world only if no other
         //      mutable access guard to the resource is alive
-        let lock = unsafe {
-            let lock_box = (*self.world).get_resource_ref::<R>();
-            self.inner_guard = Box::into_raw(lock_box);
-            &mut (*self.inner_guard)
-        };
-
-        lock.as_any().downcast_ref::<R>().unwrap()
-    }
-}
-
-impl<'a, R: Resource + 'static> Drop for ResourceHandle<'a, R> {
-    fn drop(&mut self) {
         unsafe {
-            // Dropping owned read guard
-            if !self.inner_guard.is_null() {
-                let _ = Box::from_raw(self.inner_guard);
+            match (*world).get_resource_ref::<R>() {
+                Some(guard_box) => Some(Self {
+                    inner_guard_box: guard_box,
+                    _marker: std::marker::PhantomData,
+                }),
+                None => None,
             }
-
-            self.inner_guard = null_mut();
         }
     }
 }
 
-
-
-
-
+impl<R: Resource + 'static> ResourceHandle<R> {
+    pub fn get_resource(&mut self) -> &R {
+        self.inner_guard_box.as_any().downcast_ref::<R>().unwrap()
+    }
+}
 
 pub struct MutResourceHandle<'a, R: Resource + 'static>
 where
     R: Resource,
 {
-    world: *mut World,
-    inner_guard: *mut RwLockWriteGuard<'a, Box<dyn Resource>>,
+    inner_guard_box: Box<RwLockWriteGuard<'a, Box<dyn Resource>>>,
     pub(crate) _marker: PhantomData<R>,
 }
 
 impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<'a, R> {
-    fn initialise(world: &mut World) -> Self {
-        Self {
-            world: world,
-            inner_guard: null_mut(),
-            _marker: std::marker::PhantomData
+    fn initialise(world: *mut World) -> Option<Self> {
+        // @SAFETY:
+        // 1. See safety description in [`ResourceHandle`]
+        // 2. The lock is only returned by the world only when the Resource is
+        //      not mutably or immutably borrowed by some process in the system.
+        unsafe {
+            match (*world).get_resource_mut::<R>() {
+                Some(guard_box) => Some(Self {
+                    inner_guard_box: guard_box,
+                    _marker: std::marker::PhantomData,
+                }),
+                None => None,
+            }
         }
     }
 }
 
 impl<'a, R: Resource + 'static> MutResourceHandle<'a, R> {
     pub fn get_resource_mut(&mut self) -> &mut R {
-        // Acquiring owned write guard to the resource from the world
-        //
-        // @SAFETY: The lock is only returned by the world only when the Resource is
-        // not mutably or immutably borrowed by some process in the system.
-        let lock = unsafe { 
-            let lock_box = (*self.world).get_resource_mut::<R>();
-            self.inner_guard = Box::into_raw(lock_box);
-            &mut (*self.inner_guard)
-        };
-
-        lock.as_any_mut().downcast_mut::<R>().unwrap()
-    }
-}
-
-
-impl<'a, R: Resource + 'static> Drop for MutResourceHandle<'a, R> {
-    fn drop(&mut self) {
-        unsafe {
-            // Getting rid of the owned guard
-            if !self.inner_guard.is_null() {
-                let _ = Box::from_raw(self.inner_guard);
-            }
-
-            self.inner_guard = null_mut();
-        }
+        self.inner_guard_box
+            .as_any_mut()
+            .downcast_mut::<R>()
+            .unwrap()
     }
 }

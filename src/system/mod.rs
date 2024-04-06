@@ -41,6 +41,6 @@ where
     Func: SystemFunction<Marker>,
 {
     fn run_system(&mut self, world_container: &UnsafeWorldContainer) {
-        self.run_system(world_container)
+        self.func.run(world_container)
     }
 }

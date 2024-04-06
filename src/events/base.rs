@@ -1,4 +1,4 @@
-use std::{any::TypeId, collections::HashMap};
+use std::{any::TypeId};
 
 use crate::ecs_base::ECSBase;
 

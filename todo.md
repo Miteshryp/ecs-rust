@@ -10,14 +10,19 @@ Another additional goal of this project is to actually explore how this architec
     
     [x] Figure out a way to pass functions with specific structure as arguments into our own functions. (Functions binded to SystemFunction trait)
 
-    [] Solve the concurrency issue for parallel systems (See notes - Critical issue regarding parallel systems)
+    [x] Solve the concurrency issue for parallel systems (See notes - Critical issue regarding parallel systems)
+        - We have stored an acquisition mutex lock in the world. The `acquire_acquisition_lock` function allows a system runner to get the acquision lock from the world. No system runner can proceed to acquiring world state without acquiring this acquisition mutex. This is placed in order to prevent a potential starvation in 2 parallel systems. (S1 has A and wants B, S2 has B and wants A, then none of the systems execute).
 
-    [] Write macro implementation of SystemFunction in order to allow multiple user defined parameters(implementing SystemParam) into the function. 
-    (We dont wanna allow direct user defined types to be a system param, but can we can allow the user to directly implement system param? 
+    [x] Write macro implementation of SystemFunction in order to allow multiple user defined parameters(implementing SystemParam) into the function. 
+    (
+        We dont wanna allow direct user defined types to be a system param, but can we can allow the user to directly implement system param? 
+        We can, but what is the utility of that? There are only resources, components or entities to be fetched from the world.
     
-    SystemParam -> initialise (&mut world).
-    Giving the user a mutable reference is kindof risky imo.
-    @TODO: Think about this some more.)
+
+        SystemParam -> initialise (*mut World).
+        Giving the user a world pointer is veryyyy risky.
+        No, user cant have a pointer.
+    )
 
     [x] Allowing multiple types of parameters into the function will have extra load of fetching those resources from the World, based on user parameters that we do not know. Find a solution to this problem. 
     (We restrict the types of SystemParams by predefining them.
@@ -30,6 +35,15 @@ Another additional goal of this project is to actually explore how this architec
     [] Implement data extractors
 
         @TODO Test the implementation
+
+        - Design a dependency design model for systems
+        
+        - Create Schedules which can identify system dependency
+            1. Identify dependency
+            2. Place the dependency higher up in the chain and keep the dependents lower
+            3. Start executing from the top.
+            4. Ensure that lock acquisition are done in a transaction using semaphores
+
         - [x]  Write read and write functions for EventReaders and EventWriters. These read and write methods are responsible for:
             1. Going through the vec to see if the type matches the one specified to the reader
             2. If yes, convert that type to the required local type and 
