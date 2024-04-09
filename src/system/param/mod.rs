@@ -1,8 +1,8 @@
-mod component;
+mod query;
 mod event;
 mod resource;
 
-pub use component::*;
+pub use query::*;
 pub use event::*;
 pub use resource::*;
 

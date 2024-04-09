@@ -17,7 +17,7 @@ use crate::{
     },
     entity::{entity_manager::EntityManager, Entity},
     events::{event_manager::EventManager, Event},
-    system::param::{EventReader, EventWriter, MutResourceHandle},
+    system::param::{EventReader, EventWriter, MutResourceHandle, SystemQuery},
 };
 
 /// ### World struct
@@ -57,7 +57,7 @@ pub struct World {
     event_manager: EventManager,
 
     // Group lock mutexes for fetching state variable references from the world
-    acquisition_lock: std::sync::Mutex<u32>,
+    // acquisition_lock: std::sync::Mutex<u32>,
     // _acquire_resources_lock: std::sync::Mutex<u32>,
     // _acquire_components_lock: std::sync::Mutex<u32>,
 
@@ -137,7 +137,7 @@ impl World {
             component_managers: HashMap::new(),
             event_manager: EventManager::new(),
             resources: HashMap::new(),
-            acquisition_lock: Mutex::new(0)
+            // acquisition_lock: Mutex::new(0)
         }
     }
 
@@ -154,6 +154,8 @@ impl World {
     /// attached to it.
     pub fn remove_entity(&mut self, entity_id: Entity) {
         // Dispose all components attached to the entity
+        // @TODO: Check whether the entity is actually valid before launching remove_component_from_entity functions
+
         for (_, system) in &mut self.component_managers {
             if system.has_component(entity_id) {
                 system.remove_component_from_entity(entity_id);
@@ -163,6 +165,54 @@ impl World {
         self.entity_manager.dispose_entity_id(entity_id);
     }
 
+    ///
+    /// ### Description
+    /// 
+    ///  Returns an array of [`EntityIds`](Entity) which have the
+    /// components with the types specified in the input parameter
+    /// 
+    /// ### Parmameters
+    /// - `Query` [SystemQuery] type defining the components to be fetched 
+    ///         from the world 
+    /// 
+    // /// - `component_ids`: [`Vec<TypeId>`], where each [TypeId] should be the TypeId of a 
+    // ///     [`ComponentType`](Component) which has been registered in the world. 
+    // ///     Passing a non-component type or unregistered component type will result in 
+    // ///     an empty array
+    pub fn get_entities_with_components<Query: for<'a> SystemQuery<'a>>(&self) -> hashbrown::HashSet<&Entity> {
+
+        // Getting all active entities in the world
+        // Initially we assume it asks for all entities
+        let mut active_entities = self.entity_manager.get_active_entities();
+        
+        // Array of TypeId of Components that the query demands
+        let component_ids = Query::get_query_entities();
+        
+        // Finding appropriate component manager for each type
+        for cid in component_ids {
+            let component_manager = match self.component_managers.get(&cid) {
+                Some(x) => x,
+                None => {
+                    log::error!(
+                        "Failed to get manager: TypeId {:?} does not belong to a registered component",
+                        cid
+                    );
+                    return hashbrown::HashSet::new()
+                },
+            };
+
+            // We only keep the intersection of entities with all the previous
+            // component and the entities with the current component.
+            // This ensures that we only shortlist entities which have 
+            // all the enlisted components attached to them
+            let component_entities: hashbrown::HashSet<&Entity> = component_manager.get_entities().into_iter().collect();
+            active_entities = component_entities.intersection(&active_entities).cloned().collect();
+        }
+
+        active_entities
+    }
+
+    
     ///### Description
     ///
     /// Registers a component type in the manager by creating a
@@ -294,7 +344,7 @@ impl World {
     /// A pair of Component and Entity references.
     pub fn get_all_component_ids<C: Component + 'static>(&self) -> Vec<&Entity> {
         let system = self.get_manager::<C>();
-        system.get_all_component_ids()
+        system.get_entities()
     }
 
     ///
@@ -306,10 +356,24 @@ impl World {
     /// #### SAFETY:
     ///
     /// The component type requested by the user must be registered in the system
-    pub fn get_component_mut_ref<C: Component + 'static>(
+    // pub fn get_component_mut_ref<C: Component + 'static>(
+    //     &mut self,
+    //     entity_id: Entity,
+    // ) -> Option<RefMut<'_, C>> {
+    //     assert!(
+    //         self.check_component_registered::<C>(),
+    //         "Component not registered for use {}",
+    //         C::get_name()
+    //     );
+
+    //     let system = self.get_manager_mut::<C>();
+    //     system.borrow_component_mut(entity_id)
+    // }
+
+    pub fn get_boxed_component_mut_ref<C: Component + 'static>(
         &mut self,
         entity_id: Entity,
-    ) -> RefMut<'_, C> {
+    ) -> Option<Box<RefMut<'_, C>>> {
         assert!(
             self.check_component_registered::<C>(),
             "Component not registered for use {}",
@@ -317,7 +381,10 @@ impl World {
         );
 
         let system = self.get_manager_mut::<C>();
-        system.borrow_component_mut(entity_id)
+        match system.borrow_component_mut(entity_id) {
+            Some(component_ref) => Some(Box::new(component_ref)),
+            None => None,
+        }
     }
 
     
@@ -349,16 +416,16 @@ impl World {
     }
 
 
-    pub(crate) fn acquire_acquisition_lock(&mut self) -> MutexGuard<'_, u32> {
-        match self.acquisition_lock.lock() {
-            Ok(guard) => guard,
-            Err(_) => panic!("World acquisition mutex poisoned"), // Should never happen
-        }
-    }
+    // pub(crate) fn acquire_acquisition_lock(&mut self) -> MutexGuard<'_, u32> {
+    //     match self.acquisition_lock.lock() {
+    //         Ok(guard) => guard,
+    //         Err(_) => panic!("World acquisition mutex poisoned"), // Should never happen
+    //     }
+    // }
 
-    pub(crate) fn return_acquisition_lock(&mut self, guard: MutexGuard<'_, u32>) {
-        // The guard gets freed, and hence the lock is released on
-        // the acquisition_lock variable
-        drop(guard)
-    }
+    // pub(crate) fn return_acquisition_lock(&mut self, guard: MutexGuard<'_, u32>) {
+    //     // The guard gets freed, and hence the lock is released on
+    //     // the acquisition_lock variable
+    //     drop(guard)
+    // }
 }

@@ -6,11 +6,15 @@ use std::{
 };
 
 ///
-///     @NOTE: We get a mutable pointer to the world as a input to the initialise method
-///     This is to facilitate RwLockGuard acquisition from the world for Resource
-///     handles. &mut World makes rust believe the returned guard does not have
-///     lifetime which lives long enough, so we fool the borrow checker this way
-///     to make it think that the reference is static.
+/// A Resource Handle to access unique resources created in the world
+///     
+///     
+/// 
+/// @NOTE: We get a mutable pointer to the world as a input to the initialise method
+///         This is to facilitate RwLockGuard acquisition from the world for Resource
+///         handles. &mut World makes rust believe the returned guard does not have
+///         lifetime which lives long enough, so we fool the borrow checker this way
+///         to make it think that the reference is static.
 pub struct ResourceHandle<R: Resource + 'static>
 where
     R: Resource,

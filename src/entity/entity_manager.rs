@@ -57,6 +57,19 @@ impl EntityManager {
         }
     }
 
+
+    /// 
+    /// Returns the vector of all active entities living 
+    /// in the world entity manager.
+    /// 
+    pub fn get_active_entities(&self) -> hashbrown::HashSet<&Entity> {
+        let valid_entities: hashbrown::HashSet<&Entity> = self.entities.iter().filter(|e| {
+            !self.empty_index.contains(&(e.index as usize))
+        }).collect();
+
+        valid_entities
+    }
+
     ///
     /// Creates an Entity and gives it's EntityId
     ///
