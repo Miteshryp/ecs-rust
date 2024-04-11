@@ -1,13 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    component::Component,
-    ecs_base::ECSBase,
-    system::{
-        base::{System, SystemFunction},
-        SystemHolder,
-    },
-    world::{unsafe_world::UnsafeWorldContainer, World},
+    component::Component, ecs_base::ECSBase, schedule::{parallel::ParallelSchedule, IntoSchedulable}, system::{
+        base::SystemMarker,
+        System,
+    }, world::{unsafe_world::UnsafeWorldContainer, World},
+    schedule::Schedule
 };
 
 /// ### ECS App
@@ -43,16 +41,18 @@ use crate::{
 /// ```
 pub struct App {
     world_container: UnsafeWorldContainer,
+    test_schedule: ParallelSchedule,
     // systems: Vec<Box<dyn BaseSystem>>,
     // systems: Vec<dyn FnMut(&mut World, dyn SystemParam)>,
 }
 
-pub trait SystemParam {}
+// pub trait SystemParam {}
 
 impl App {
     pub fn new() -> Self {
         App {
             world_container: UnsafeWorldContainer::new(),
+            test_schedule: ParallelSchedule::new(),
             // systems: vec![],
         }
     }
@@ -88,9 +88,12 @@ impl App {
 
     pub fn add_system<T, Marker>(&mut self, system: T)
     where
-        T: SystemFunction<Marker>,
+        T: SystemMarker<Marker> + IntoSchedulable<Marker>,
     {
-        let sys: Box<dyn System> = Box::new(SystemHolder::new(system));
+        self.test_schedule.add_boxed(system.into_schedulable());
+        // todo!()
+        // let s = Box::new(System::new(system));
+        // let sys: Box<dyn System> = Box::new(System::new(system));
     }
 
     // @TODO: Add schedules functionality for each flow

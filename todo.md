@@ -6,7 +6,7 @@ Another additional goal of this project is to actually explore how this architec
 
 # PRIMARY
 
-[] Investigate the potential memory bug
+[x] Investigate the potential memory bug
     We are accessing components in the component system using a RefCell, which returns a Ref or RefMut (depending on accessor).
     What is supposed to happen if within a frame, when there are multiple references given out to extractors, on of the system calls a `remove_entity` or `remove_component_from_entity` function while other read references are still alive? This could result in a crash. 
     `remove_entity` requires a mutable world, but as we know every system practically has a mutable access to the world parallely, which is a problem in this case.
@@ -15,14 +15,12 @@ Another additional goal of this project is to actually explore how this architec
 
     Taking a page from bevy's book, we are going to be updating the world through command queues. This decision comes with the realisation that it is practically impossible to safely edit the world while multiple systems are running in parallel
 
-[x] Seperate out Serial and Parallel SystemFunction executors
 
 [] Redesign the System API to be functional
     
-    [x] Figure out a way to pass functions with specific structure as arguments into our own functions. (Functions binded to SystemFunction trait)
-
     [x] Solve the concurrency issue for parallel systems (See notes - Critical issue regarding parallel systems)
         - We have stored an acquisition mutex lock in the world. The `acquire_acquisition_lock` function allows a system runner to get the acquision lock from the world. No system runner can proceed to acquiring world state without acquiring this acquisition mutex. This is placed in order to prevent a potential starvation in 2 parallel systems. (S1 has A and wants B, S2 has B and wants A, then none of the systems execute).
+        - We have updated this design. We now have 2 different types of Schedules that can be incorporated in a world. Each of these 2 systems use different system executors (SystemFunction)
 
     [x] Write macro implementation of SystemFunction in order to allow multiple user defined parameters(implementing SystemParam) into the function. 
     (
@@ -31,15 +29,10 @@ Another additional goal of this project is to actually explore how this architec
     
 
         SystemParam -> initialise (*mut World).
-        Giving the user a world pointer is veryyyy risky.
-        No, user cant have a pointer.
+        Giving the user a world pointer is veryyyy risky. (Only if we allow direct access of a state in the world, which we dont)
     )
 
-    [x] Allowing multiple types of parameters into the function will have extra load of fetching those resources from the World, based on user parameters that we do not know. Find a solution to this problem. 
-    (We restrict the types of SystemParams by predefining them.
-    These types in turn can fetch an arbitrarily defined type (which is valid for the struct) from the world)
-
-    [x] Think about a way to store the acquired SystemFunction in the app struct as a system.
+    [] Write the Docs for SystemExecutor architecture
 
     [] Design a way to store systems in the World
         - Serial and Parallel Schedules are going to be system holders
@@ -64,13 +57,11 @@ Another additional goal of this project is to actually explore how this architec
             return
             3. In case of writer, the writer should construct the Event and send it as a Box
         - [x] Write Event implemting macros - ECSBase + Event
-        
-        - [x] Write Resource extractors
-            -  [x] ResourceHandle -> accesses resources immutably
-            -  [x] MutResourceHandle -> accesses resources mutably
+
         
         - [x] Design and Write Query extractor
-            - [] Decide if we need Query to be of different types (Mutable and immutable)
+            - [x] Decide if we need Query to be of different types (Mutable and immutable)
+            (We do need that)
 
         - [] Design and write a ComponentHandle extractor
 
@@ -80,20 +71,35 @@ Another additional goal of this project is to actually explore how this architec
 
 [] Design and write a CommandBuffer writer for Scheduler, where a CommandBuffer is going to implement a SystemParam trait
 
-[x] Figure out how to store functions with different parameters in the world struct. (Bind each struct that we want to allow to be passed as a SystemParam. This trait will be implemented automatically for different ECS structs through derive macros.)
+
+[] Write a macro for implementing system param such that the implementor only needs to implement the initialise function, as the implementation of all other functions is common.
 
 [x] Design Event flow (See notes.md -> Processing Events Internally)
 
-[x] Think about how can we execute systems in parallel by identifying dependencies of a system. (System Dependency graphs as DAGs, each independent system is executed parallely in arbituary order).
-
-[] Learn to put attributes in derive macros for system derives
 
 # Research
 
 [] Impact of RwLocks on performance
 
+[] Learn to put attributes in derive macros for system derives
 
 
 # Optimizations
     [] Explore the option to implement the sparse map version for optimizing memory. IMPORTANT: Carefully analyze the pros and cons and implement only if it actually benefits performance in the end.
     (This uses hashmap, but it also depends on the implementation. Bevy used a custom Sparse HashMap because the TypeId itself actually stores a u128, which I am guessing produces dispursed values when the code is compiled.)
+
+    [] Do a Detailed Algorithmic analysis of structures used after making the entire system functional
+
+
+
+
+
+
+git commit -m "Changes:
+                                         - Changed the Component manager API with storage architecture
+                                         - Changed the world API and resource storage architecture
+                                         - Changed the macro definitions implemented on function objects
+                                         - Added traits on functions
+                                         - Added Schedule based traits
+                                         - Added Fuzzy Parallel Scheduling
+                                         - TODO: App has testing API field in struct. Delete them

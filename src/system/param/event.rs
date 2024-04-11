@@ -1,4 +1,4 @@
-use std::{any::TypeId, marker::PhantomData, sync::mpsc::Sender};
+use std::{any::{Any, TypeId}, marker::PhantomData, sync::mpsc::Sender};
 
 use crate::{events::Event, world::{unsafe_world::UnsafeWorldContainer, World}};
 
@@ -10,29 +10,11 @@ use super::SystemParam;
 /// from [`EventManager`](crate::events::event_manager::EventManager) in a world.
 
 pub struct EventReader<E: Event + 'static> {
-    // pub(crate) manager: &'a EventManager,
-    // pub(crate) reader: &'a Vec<Box<dyn Event>>,
     pub(crate) reader: *const Vec<Box<dyn Event>>,
     pub(crate) _marker: PhantomData<E>,
 }
 
 impl<E: Event + 'static> EventReader<E> {
-    // pub fn read_events(&self) -> Option<Vec<&E>> {
-    // sys1 -> EventReader<E1> { &v }
-    // sys2 -> EventReader<E1> { &v }
-
-    // if let Some(event_iter) = self.manager.get_event_vec::<E>() {
-    //     Some(
-    //         event_iter
-    //             .map(|b| b.as_any().downcast_ref::<E>().unwrap())
-    //             .into_iter()
-    //             .collect(),
-    //     )
-    // } else {
-    //     None
-    // }
-    // }
-
     pub fn read_events(&self) -> Vec<&E> {
         let vec = unsafe { &*self.reader };
 
@@ -43,20 +25,28 @@ impl<E: Event + 'static> EventReader<E> {
     }
 }
 
-impl<E: Event + 'static> SystemParam for EventReader<E> {
-    fn initialise(world: *mut World) -> Option<Self> {
-        unsafe {
-            Some((*world).get_event_reader())
-        }
-    }
+// impl<E: Event + 'static> SystemParam for EventReader<E> {
+//     fn initialise(world: *mut World) -> Option<Self> {
+//         unsafe {
+//             Some((*world).get_event_reader())
+//         }
+//     }
 
-    fn type_id() -> TypeId
-    where
-        Self: Sized + 'static,
-    {
-        TypeId::of::<Self>()
-    }
-}
+//     fn as_any(&self) -> &dyn Any {
+//         self as &dyn Any
+//     }
+
+//     fn as_any_mut(&mut self) -> &mut dyn Any{
+//         self as &mut dyn Any
+//     }
+
+//     fn type_id() -> TypeId
+//     where
+//         Self: Sized + 'static,
+//     {
+//         TypeId::of::<Self>()
+//     }
+// }
 
 /// ## Description
 ///
@@ -73,11 +63,18 @@ impl EventWriter {
     }
 }
 
-impl SystemParam for EventWriter {
-    fn initialise(world: *mut World) -> Option<Self> {
-        unsafe {
-            Some((*world).get_event_writer())
-        }
-        // world.get_world_mut().get_event_writer()
-    }
-}
+// impl SystemParam for EventWriter {
+//     fn as_any(&self) -> &dyn Any {
+//         self as &dyn Any
+//     }
+
+//     fn as_any_mut(&mut self) -> &mut dyn Any{
+//         self as &mut dyn Any
+//     }
+
+//     fn initialise(world: *mut World) -> Option<Self> {
+//         unsafe {
+//             Some((*world).get_event_writer())
+//         }
+//     }
+// }

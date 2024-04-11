@@ -8,30 +8,43 @@ pub use resource::*;
 
 
 use std::{
-    any::TypeId,
-    marker::PhantomData,
-    slice::Iter,
-    sync::mpsc::{self, Sender},
+    any::{Any, TypeId},
 };
 
 use crate::{
-    component::resource::Resource,
-    events::{event_manager::EventManager, Event},
-    world::{unsafe_world::UnsafeWorldContainer, World},
+    ecs_base::ECSBase, world::World
 };
 
 
-/// Trait implemented by all types which can be passed into a functional
-/// system as a system param. These are types which associate the requested
-/// world state type to the appropriate world object based on the metadata
-/// provided to the type
-pub trait SystemParam {
+/// 
+/// ### Description
+/// 
+/// This is a trait defined on all types which can be taken as an input
+/// dependency in a system. This trait type is responsible for recognizing
+/// functions as system and coordinating system based trait implementations
+/// on the given function type.
+/// 
+/// @SAFETY:
+/// Any system param is going to be allocated in a schedule, and 
+/// run across different threads. Also, any given SystemParam 
+/// reference will only be sent to a single thread, hence removing
+/// any possibility of contention of resources allocated in the SystemParam,
+/// 
+/// With the above assertions, any SystemParam is safe to
+/// be Send or Referenced across a thread boundary.
+/// 
+/// 
+/// 
+pub trait SystemParam: ECSBase {
     fn type_id() -> TypeId
     where
         Self: Sized + 'static,
     {
         TypeId::of::<Self>()
     }
+
+    // fn as_any(&self) -> &dyn Any;
+    // fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// Interface to setup world extractor parameter to 
     /// fetch World state for functional systems.
@@ -48,14 +61,4 @@ pub trait SystemParam {
 
 
 
-/// ## Description
-/// Extract the specified type of Components from the world to query.
-/// The struct supplies the component's along with their [`Entity`](crate::entity::Entity)
-/// if and only if
-///     - All components specified are attached to the entity_id.
-///     - All components are free for use and not being held by another system for use. (NOTE: This has a high chance of resulting in a deadlock through mutual starvation)
-///
-pub struct Query {
-    // SAFETY: @TODO
-    world: *mut World,
-}
+

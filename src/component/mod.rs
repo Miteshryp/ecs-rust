@@ -1,5 +1,6 @@
 pub mod component_manager;
-pub mod resource;
+// pub mod resource;
+pub mod handles;
 
 use std::any::{Any, TypeId};
 

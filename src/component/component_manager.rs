@@ -8,8 +8,15 @@ use crate::{
 
 use std::{
     any::{Any, TypeId},
-    cell::{Ref, RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut}, sync::Arc,
 };
+
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+
+// @TODO: Change the system to use tokio::RwLock
+//      so that the acquired locks can be passed around
+// use tokio::sync::{RwLock, OwnedRwLockReadGuard};
 
 use hashbrown::HashMap;
 
@@ -57,9 +64,15 @@ where
 {
     /// Contiguous array of components which enables us to do faster
     /// update operations due to better cache locality.
+    /// 
     /// RefCell dynamically checks the mutable references to a component,
     /// hence we cannot have illegal reference to a component
-    components: Vec<RefCell<Comp>>,
+    /// 
+    /// @TODO: We need to remove RefCell as they are not safe across 
+    /// thread boundaries
+    /// 
+    // components: Vec<RefCell<Comp>>,
+    components: Vec<Arc<RwLock<Comp>>>,
 
     /// Stores the [entity ids](Entity) of the [`components`](ComponentManager::components)
     /// in the same order as the components are presented in the array
@@ -158,7 +171,9 @@ where
 
         let component_index = self.components.len();
 
-        self.components.push(RefCell::new(component));
+        // self.components.push(RefCell::new(component));
+
+        self.components.push(Arc::new(RwLock::new(component)));
         self.entity_ids.push(entity_id);
         self.entity_component_map.insert(entity_id, component_index);
     }
@@ -170,49 +185,45 @@ where
     /// #### SAFETY:
     /// [`components`](ComponentManager::components) is protected by a [`RefCell`], hence the reference
     /// to the component cannot be used illegally.
-    pub fn borrow_component(&self, entity_id: Entity) -> Option<Ref<'_, Comp>> {
-        match self
-            .components
-            .get(*self.entity_component_map.get(&entity_id).unwrap())
-        {
-            Some(component) => match component.try_borrow() {
-                Ok(x) => Some(x),
-                Err(err) => {
-                    // Imutable reference is not possible
-                    log::error!(
-                        "Component [id: {:?}, type: {:?}] -> Immutable reference not possible. \n{}",
-                        entity_id,
-                        TypeId::of::<Comp>(),
-                        err.to_string()
-                    );
-                    None
-                }
-            },
-            None => {
-                // Component does not exist in the entity
-                log::error!(
-                    "Component [id: {:?}, type: {:?}] -> Component does not exist in the entity.",
-                    entity_id,
-                    TypeId::of::<Comp>(),
-                );
-                None
-            }
-        }
-    }
+    // pub fn borrow_component(&self, entity_id: Entity) -> Option<Ref<'_, Comp>> {
+    //     let component_index = match self.entity_component_map.get(&entity_id) {
+    //         Some(x) => x,
+    //         None => {
+    //             log::error!("borrow_component_mut failed:");
+    //             log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+    //             return None;
+    //         },
+    //     };
 
-    /// Used to get a mutable reference to a component in the manager
-    ///
-    /// #### SAFETY:
-    /// [`components`](ComponentManager::components) is protected by RefCell,
-    /// hence illegal code crashes at runtime.
-    /// Given that the validity of the world is protected by the scheduler, the
-    /// RefMut returned from this function is guaranteed to be valid.
-    pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<RefMut<'_, Comp>> {
+    //     match self
+    //         .components[*component_index].try_borrow()
+    //     {
+    //             Ok(x) => Some(x),
+    //             Err(err) => {
+    //                 // Mutable reference is not possible
+    //                 log::error!(
+    //                     "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+    //                     entity_id,
+    //                     TypeId::of::<Comp>(),
+    //                     err.to_string()
+    //                 );
+    //                 None
+    //             }
+    //     }
+    // }
+    pub fn borrow_component(&self, entity_id: Entity) -> Option<OwnedRwLockReadGuard<Comp>> {
+        let component_index = match self.entity_component_map.get(&entity_id) {
+            Some(x) => x,
+            None => {
+                log::error!("borrow_component_mut failed:");
+                log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+                return None;
+            },
+        };
+
         match self
-            .components
-            .get(*self.entity_component_map.get(&entity_id).unwrap())
+            .components[*component_index].clone().try_read_owned()
         {
-            Some(component) => match component.try_borrow_mut() {
                 Ok(x) => Some(x),
                 Err(err) => {
                     // Mutable reference is not possible
@@ -224,16 +235,66 @@ where
                     );
                     None
                 }
-            },
+        }
+    }
+
+    /// Used to get a mutable reference to a component in the manager
+    ///
+    /// #### SAFETY:
+    /// [`components`](ComponentManager::components) is protected by RefCell,
+    /// hence illegal code crashes at runtime.
+    /// Given that the validity of the world is protected by the scheduler, the
+    /// RefMut returned from this function is guaranteed to be valid.
+    // pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<RefMut<'_, Comp>> {
+    //     let component_index = match self.entity_component_map.get(&entity_id) {
+    //         Some(x) => x,
+    //         None => {
+    //             log::error!("borrow_component_mut failed:");
+    //             log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+    //             return None;
+    //         },
+    //     };
+
+    //     match self
+    //         .components[*component_index].try_borrow_mut()
+    //     {
+    //             Ok(x) => Some(x),
+    //             Err(err) => {
+    //                 // Mutable reference is not possible
+    //                 log::error!(
+    //                     "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+    //                     entity_id,
+    //                     TypeId::of::<Comp>(),
+    //                     err.to_string()
+    //                 );
+    //                 None
+    //             }
+    //     }
+    // }
+    pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<OwnedRwLockWriteGuard<Comp>> {
+        let component_index = match self.entity_component_map.get(&entity_id) {
+            Some(x) => x,
             None => {
-                // Component does not exist in the entity
-                log::error!(
-                    "Component [id: {:?}, type: {:?}] -> Component does not exist in the entity.",
-                    entity_id,
-                    TypeId::of::<Comp>(),
-                );
-                None
-            }
+                log::error!("borrow_component_mut failed:");
+                log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+                return None;
+            },
+        };
+
+        match self
+            .components[*component_index].clone().try_write_owned()
+        {
+                Ok(x) => Some(x),
+                Err(err) => {
+                    // Mutable reference is not possible
+                    log::error!(
+                        "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+                        entity_id,
+                        TypeId::of::<Comp>(),
+                        err.to_string()
+                    );
+                    None
+                }
         }
     }
 

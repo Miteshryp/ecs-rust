@@ -36,3 +36,10 @@
 - `func.run` is called to execute the funtion. This run is executed in the 
 
 - `into_configs` -> gives system configs
+
+
+# Scheduling
+- Serial systems should be able to contain Parallel systems, and vice-versa
+- Both types of systems should also be able to directly contain their appropriate executors (SerialSystem and ParallelSystem), so they should implement Schedulable trait
+
+- We need to design a seperate function holder for parallel systems, which 

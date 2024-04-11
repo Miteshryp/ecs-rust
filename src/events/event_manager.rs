@@ -48,24 +48,31 @@ impl EventManager {
     }
 
 
-    pub fn get_reader<E: Event + 'static>(&mut self) -> EventReader<E> {
-        if let Some(event_vec) = self.events.get(&E::type_id()) {
-            EventReader {
+    pub fn get_reader<E: Event + 'static>(&mut self) -> Option<EventReader<E>> {
+        match self.events.get(&E::type_id()) {
+            Some(event_vec) => Some(EventReader {
                 reader: event_vec,
                 _marker: std::marker::PhantomData
-            }
-        } else {
+            }),
+            None => None
+        }
             // @ERROR
-            // @TODO: This line potentially creates conflict in a parallel
+            // This line potentially creates conflict in a parallel
             // system (When 2 different system try to read resource which does not exists,
             // It may end up in 2 insert operations. Although at the end only a new empty vec
             // should be inserted, it is still a potential threat.)
-            self.events.insert(E::type_id(), vec![]);
-            EventReader {
-                reader: self.events.get(&E::type_id()).unwrap(),
-                _marker: std::marker::PhantomData
-            }
-        }
+
+            // @FIX
+            // We removed the mechanism for auto inserting unregistered event,
+            // and now we simply return a None if the requested event is not 
+            // registered with the world
+
+
+            // self.events.insert(E::type_id(), vec![]);
+            // EventReader {
+            //     reader: self.events.get(&E::type_id()).unwrap(),
+            //     _marker: std::marker::PhantomData
+            // }
     }
 
     pub fn get_writer(&mut self) -> EventWriter {

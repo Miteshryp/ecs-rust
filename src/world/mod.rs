@@ -2,19 +2,19 @@ pub(crate) mod unsafe_world;
 
 use std::{
     any::TypeId,
-    borrow::{Borrow, BorrowMut},
-    cell::{Cell, RefCell, RefMut},
-    sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::Arc,
 };
+
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use hashbrown::HashMap;
 
 use crate::{
     component::{
         component_manager::{ComponentManager, EcsManager},
-        resource::{Resource, ResourceId, ResourceRaw},
         Component,
     },
+    resource::{Resource, ResourceId},
     entity::{entity_manager::EntityManager, Entity},
     events::{event_manager::EventManager, Event},
     system::param::{EventReader, EventWriter, MutResourceHandle, SystemQuery},
@@ -56,14 +56,10 @@ pub struct World {
 
     event_manager: EventManager,
 
-    // Group lock mutexes for fetching state variable references from the world
-    // acquisition_lock: std::sync::Mutex<u32>,
-    // _acquire_resources_lock: std::sync::Mutex<u32>,
-    // _acquire_components_lock: std::sync::Mutex<u32>,
-
     /// Resources present in the world
     // resources: HashMap<ResourceId, Box<dyn Resource>>,
-    resources: HashMap<ResourceId, RwLock<Box<dyn Resource>> >,
+    // resources: HashMap<ResourceId, RwLock<Box<dyn Resource>> >,
+    resources: HashMap<ResourceId, Arc<RwLock<Box<dyn Resource>>> >,
 }
 
 /// Private member implementations
@@ -84,7 +80,10 @@ impl World {
         self.component_managers.contains_key(&TypeId::of::<C>())
     }
 
-    // @TODO: Think about the panic behavior, is it right?
+    // @DONE: Think about the panic behavior, is it right?
+    //          We're shifting to Options slowly
+    // @TODO: Audit all functions to follow an Option based
+    //          response process for undefined behavior.
 
     ///
     /// ### Description:
@@ -179,14 +178,14 @@ impl World {
     // ///     [`ComponentType`](Component) which has been registered in the world. 
     // ///     Passing a non-component type or unregistered component type will result in 
     // ///     an empty array
-    pub fn get_entities_with_components<Query: for<'a> SystemQuery<'a>>(&self) -> hashbrown::HashSet<&Entity> {
+    pub fn get_entities_with_components<QueryType: SystemQuery>(&self) -> hashbrown::HashSet<&Entity> {
 
         // Getting all active entities in the world
         // Initially we assume it asks for all entities
         let mut active_entities = self.entity_manager.get_active_entities();
         
         // Array of TypeId of Components that the query demands
-        let component_ids = Query::get_query_entities();
+        let component_ids = QueryType::get_query_entities();
         
         // Finding appropriate component manager for each type
         for cid in component_ids {
@@ -239,23 +238,40 @@ impl World {
         assert!(!self.resources.contains_key(&R::get_type()));
 
         // self.resources.insert(R::get_type(), Box::new(resource));
-        self.resources.insert(R::get_type(), RwLock::new(Box::new(resource)));
+        // self.resources.insert(R::get_type(), RwLock::new(Box::new(resource)));
+
+        self.resources.insert(R::get_type(), Arc::new(RwLock::new(Box::new(resource))));
     }
 
     /// Returns a Write Guard to a resource in the world
+    /// 
     /// @SAFETY: The returned guard is supplied in a Box, which can be 
     /// handled by the user manually if required, but in any such case (MutResourceHandle),
     /// the proper release of the lock is a must for smooth operation.
-    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<Box<RwLockWriteGuard<'_, Box<dyn Resource>>>> {
-        match self.resources.get(&R::get_type()).unwrap().write() {
-            Ok(x) => Some(Box::new(x)),
+    // pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<Box<RwLockWriteGuard<'_, Box<dyn Resource>>>> {
+    //     match self.resources.get(&R::get_type()).unwrap().write() {
+    //         Ok(x) => Some(Box::new(x)),
+    //         Err(_) => None,
+    //     }
+    // }
+
+    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
+        match self.resources.get(&R::get_type()).unwrap().clone().try_write_owned() {
+            Ok(x) => Some(x),
             Err(_) => None,
         }
     }
     
-    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<Box<RwLockReadGuard<'_, Box<dyn Resource>>>> {
-        match self.resources.get(&R::get_type()).unwrap().read() {
-            Ok(x) => Some(Box::new(x)),
+    // pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<Box<RwLockReadGuard<'_, Box<dyn Resource>>>> {
+    //     match self.resources.get(&R::get_type()).unwrap().read() {
+    //         Ok(x) => Some(Box::new(x)),
+    //         Err(_) => None
+    //     }
+    // }
+
+    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
+        match self.resources.get(&R::get_type()).unwrap().clone().try_read_owned() {
+            Ok(x) => Some(x),
             Err(_) => None
         }
     }
@@ -347,33 +363,12 @@ impl World {
         system.get_entities()
     }
 
-    ///
-    /// ### Description:
-    ///
-    /// Used to get a mutable reference of the component attached to the
-    /// specified entity.
-    ///
-    /// #### SAFETY:
-    ///
-    /// The component type requested by the user must be registered in the system
-    // pub fn get_component_mut_ref<C: Component + 'static>(
-    //     &mut self,
-    //     entity_id: Entity,
-    // ) -> Option<RefMut<'_, C>> {
-    //     assert!(
-    //         self.check_component_registered::<C>(),
-    //         "Component not registered for use {}",
-    //         C::get_name()
-    //     );
 
-    //     let system = self.get_manager_mut::<C>();
-    //     system.borrow_component_mut(entity_id)
-    // }
-
-    pub fn get_boxed_component_mut_ref<C: Component + 'static>(
+    // @TODO: Document
+    pub fn get_component_ref_mut_lock<C: Component + 'static>(
         &mut self,
         entity_id: Entity,
-    ) -> Option<Box<RefMut<'_, C>>> {
+    ) -> Option<OwnedRwLockWriteGuard<C>> {
         assert!(
             self.check_component_registered::<C>(),
             "Component not registered for use {}",
@@ -382,7 +377,26 @@ impl World {
 
         let system = self.get_manager_mut::<C>();
         match system.borrow_component_mut(entity_id) {
-            Some(component_ref) => Some(Box::new(component_ref)),
+            Some(component_ref) => Some(component_ref),
+            None => None,
+        }
+    }
+
+
+
+    pub fn get_component_ref_lock<C: Component + 'static>(
+        &mut self,
+        entity_id: Entity,
+    ) -> Option<OwnedRwLockReadGuard<C>> {
+        assert!(
+            self.check_component_registered::<C>(),
+            "Component not registered for use {}",
+            C::get_name()
+        );
+
+        let system = self.get_manager_mut::<C>();
+        match system.borrow_component(entity_id) {
+            Some(component_ref) => Some(component_ref),
             None => None,
         }
     }
@@ -402,30 +416,21 @@ impl World {
     }
 }
 
+
+
+
+
+
 impl World {
     // @WARNING @IMPORTANT
     // @SAFETY: If parallel systems try to create an event reader for the same event type
     // which hasn't been used previously, it may cause trouble to create the vector for the 
     // event type
-    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> EventReader<E> {
+    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> Option<EventReader<E>> {
         self.event_manager.get_reader()
     }
 
     pub(crate) fn get_event_writer(&mut self) -> EventWriter {
         self.event_manager.get_writer()
     }
-
-
-    // pub(crate) fn acquire_acquisition_lock(&mut self) -> MutexGuard<'_, u32> {
-    //     match self.acquisition_lock.lock() {
-    //         Ok(guard) => guard,
-    //         Err(_) => panic!("World acquisition mutex poisoned"), // Should never happen
-    //     }
-    // }
-
-    // pub(crate) fn return_acquisition_lock(&mut self, guard: MutexGuard<'_, u32>) {
-    //     // The guard gets freed, and hence the lock is released on
-    //     // the acquisition_lock variable
-    //     drop(guard)
-    // }
 }

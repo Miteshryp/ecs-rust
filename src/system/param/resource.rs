@@ -1,9 +1,12 @@
+use ecs_macros::{ECSBase, Resource};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
+
 use super::SystemParam;
-use crate::{component::resource::Resource, world::World};
+use crate::{resource::Resource, world::World};
 use std::{
-    marker::PhantomData,
-    sync::{RwLockReadGuard, RwLockWriteGuard},
+    any::Any, marker::PhantomData, sync::{RwLockReadGuard, RwLockWriteGuard}
 };
+use crate::ECSBase;
 
 ///
 /// A Resource Handle to access unique resources created in the world
@@ -15,15 +18,28 @@ use std::{
 ///         handles. &mut World makes rust believe the returned guard does not have
 ///         lifetime which lives long enough, so we fool the borrow checker this way
 ///         to make it think that the reference is static.
+
+// @TODO: Replace with SystemParam derive
+#[derive(ECSBase)]
 pub struct ResourceHandle<R: Resource + 'static>
 where
     R: Resource,
 {
-    inner_guard_box: Box<RwLockReadGuard<'static, Box<dyn Resource>>>,
+    inner_guard_box: OwnedRwLockReadGuard<Box<dyn Resource>>,
     _marker: PhantomData<R>,
 }
 
+// #[derive(ECSBase)]
+// pub struct ResourceHandle<R: Resource + 'static>
+// where
+//     R: Resource,
+// {
+//     inner_guard_box: Box<RwLockReadGuard<'static, Box<dyn Resource>>>,
+//     _marker: PhantomData<R>,
+// }
+
 impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
+    
     fn initialise(world: *mut World) -> Option<Self> {
         // @SAFETY:
         // 1. The world does not go out of scope (Otherwise we wouldn't be executing this function)
@@ -39,6 +55,13 @@ impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
             }
         }
     }
+    
+    fn type_id() -> std::any::TypeId
+    where
+        Self: Sized + 'static,
+    {
+        std::any::TypeId::of::<Self>()
+    }
 }
 
 impl<R: Resource + 'static> ResourceHandle<R> {
@@ -47,15 +70,28 @@ impl<R: Resource + 'static> ResourceHandle<R> {
     }
 }
 
-pub struct MutResourceHandle<'a, R: Resource + 'static>
+
+// @TODO: Replace with SystemParam derive
+#[derive(ECSBase)]
+pub struct MutResourceHandle<R: Resource + 'static>
 where
     R: Resource,
 {
-    inner_guard_box: Box<RwLockWriteGuard<'a, Box<dyn Resource>>>,
-    pub(crate) _marker: PhantomData<R>,
+    inner_guard_box: OwnedRwLockWriteGuard<Box<dyn Resource>>,
+    _marker: PhantomData<R>,
 }
 
-impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<'a, R> {
+// #[derive(ECSBase)]
+// pub struct MutResourceHandle<R: Resource + 'static>
+// where
+//     R: Resource,
+// {
+//     inner_guard_box: Box<RwLockWriteGuard<'static, Box<dyn Resource>>>,
+//     pub(crate) _marker: PhantomData<R>,
+// }
+
+impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<R> {
+
     fn initialise(world: *mut World) -> Option<Self> {
         // @SAFETY:
         // 1. See safety description in [`ResourceHandle`]
@@ -73,7 +109,7 @@ impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<'a, R> {
     }
 }
 
-impl<'a, R: Resource + 'static> MutResourceHandle<'a, R> {
+impl<R: Resource + 'static> MutResourceHandle<R> {
     pub fn get_resource_mut(&mut self) -> &mut R {
         self.inner_guard_box
             .as_any_mut()

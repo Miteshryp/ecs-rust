@@ -21,13 +21,13 @@ pub(crate) fn derive_base(ast: &mut syn::DeriveInput) -> proc_macro2::TokenStrea
                 self as &mut dyn Any
             }
         
-            fn downcast_to_ref<T: ECSBase + Sized + 'static>(&self) -> &T where Self: Sized {
-                self.as_any().downcast_ref::<T>().unwrap()
-            }
+            // fn downcast_to_ref<T: ECSBase + Sized + 'static>(&self) -> &T where Self: Sized {
+            //     self.as_any().downcast_ref::<T>().unwrap()
+            // }
         
-            fn downcast_to_ref_mut<T: ECSBase + Sized + 'static>(&mut self) -> &mut T where Self: Sized {
-                self.as_any_mut().downcast_mut::<T>().unwrap()
-            }
+            // fn downcast_to_ref_mut<T: ECSBase + Sized + 'static>(&mut self) -> &mut T where Self: Sized {
+            //     self.as_any_mut().downcast_mut::<T>().unwrap()
+            // }
         }
     }
 }

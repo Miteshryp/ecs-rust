@@ -13,9 +13,14 @@ use super::Entity;
 ///     2. Providing APIs to access components in a specific entity.
 ///     3. Implementing an event emission system to enable events.
 ///  
-/// @TODO: Think if it is a better design to store the component systems
+/// @DONE: Think if it is a better design to store the component systems
 ///     inside the entity manager itself, since a single entity manager is
 ///     going to be a singleton in a World struct.
+/// 
+///     We are not gonna do this since the world interface has to contain
+///     interface functions which add, remove or provide access to components
+///     to different systems executing in the app, and this would only
+///     introduce an unnecessary layer of indirection
 ///
 ///
 

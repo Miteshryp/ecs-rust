@@ -60,7 +60,9 @@ mod utils;
 ///
 /// ```
 ///
-/// @TODO: Add different types of events in the future
+/// @DONE: Add different types of events in the future
+///     Changed the architecture for events itself, so this 
+///     no longer applies
 ///
 // #[proc_macro_derive(ComponentSystem)]
 // pub fn system_derive(input: TokenStream) -> TokenStream {

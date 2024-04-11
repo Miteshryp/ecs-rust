@@ -14,4 +14,3 @@ pub trait Resource: ECSBase {
 }
 
 pub type ResourceId = TypeId;
-pub type ResourceRaw<R: Resource> = Box<R>;
