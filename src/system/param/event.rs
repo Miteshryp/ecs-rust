@@ -5,7 +5,7 @@ use ecs_macros::SystemParam;
 
 use crate::{events::Event, world::{unsafe_world::UnsafeWorldContainer, World}};
 
-use super::SystemParam;
+use super::{InitError, SystemParam};
 
 
 /// ## Description
@@ -31,11 +31,11 @@ impl<E: Event + 'static> EventReader<E> {
 }
 
 impl<E: Event + 'static> SystemParam for EventReader<E> {
-    fn initialise(world: *mut World) -> Option<Self> {
+    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) {
         unsafe {
             match (*world).get_event_reader() {
-                Some(reader) => Some(reader),
-                None => None,
+                Some(reader) => (None, Some(reader)),
+                None => (Some(InitError{}), None), // Event type is not registered. Skip the system execution
             }
         }
     }

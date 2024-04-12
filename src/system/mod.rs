@@ -13,7 +13,7 @@ use crate::system::param::SystemParam;
 
 use self::{
     base::{SystemExecutor, SystemExtractor, SystemMarker},
-    dependency::SystemDependencies, param::ResourceHandle,
+    dependency::SystemDependencies, param::{InitError, ResourceHandle},
 };
 use crate::{schedule::Schedulable, world::unsafe_world::UnsafeWorldContainer};
 
@@ -54,12 +54,12 @@ where
     Marker: Send + Sync,
     Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
 {
-    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<()> {
+    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> (Option<InitError>, Option<()>) {
         self.dependencies = match self.func.extract_dependencies(world) {
-            Some(x) => x,
-            None => return None,
+            (None, Some(x)) => x,
+            default => return (default.0, None),
         };
-        Some(())
+        (None, Some(()))
     }
 
     fn run(&mut self) {

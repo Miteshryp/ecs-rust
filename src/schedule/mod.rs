@@ -1,4 +1,6 @@
-use crate::world::unsafe_world::UnsafeWorldContainer;
+use std::error::Error;
+
+use crate::{system::param::InitError, world::unsafe_world::UnsafeWorldContainer};
 
 pub mod holder;
 pub mod parallel;
@@ -31,6 +33,8 @@ pub trait Schedule {
 
 
 
+
+
 /// @SAFETY:
 /// Any schedulable element is thread safe only after its dependencies
 /// have been initialised and stored in the struct which is to be transferred
@@ -38,7 +42,7 @@ pub trait Schedule {
 /// This property must be maintained by all [Schedule]s
 // pub trait Schedulable: Sync {
 pub trait Schedulable: Send + Sync {
-    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<()>;
+    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) ->  (Option<InitError>, Option<()>);
     fn run(&mut self);
 }
 

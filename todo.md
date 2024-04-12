@@ -17,30 +17,11 @@ Another additional goal of this project is to actually explore how this architec
 
 
 [] Redesign the System API to be functional
-    
-    [x] Solve the concurrency issue for parallel systems (See notes - Critical issue regarding parallel systems)
-        - We have stored an acquisition mutex lock in the world. The `acquire_acquisition_lock` function allows a system runner to get the acquision lock from the world. No system runner can proceed to acquiring world state without acquiring this acquisition mutex. This is placed in order to prevent a potential starvation in 2 parallel systems. (S1 has A and wants B, S2 has B and wants A, then none of the systems execute).
-        - We have updated this design. We now have 2 different types of Schedules that can be incorporated in a world. Each of these 2 systems use different system executors (SystemFunction)
-
-    [x] Write macro implementation of SystemFunction in order to allow multiple user defined parameters(implementing SystemParam) into the function. 
-    (
-        We dont wanna allow direct user defined types to be a system param, but can we can allow the user to directly implement system param? 
-        We can, but what is the utility of that? There are only resources, components or entities to be fetched from the world.
-    
-
-        SystemParam -> initialise (*mut World).
-        Giving the user a world pointer is veryyyy risky. (Only if we allow direct access of a state in the world, which we dont)
-    )
 
     [] Write the Docs for SystemExecutor architecture
 
-    [] Design a way to store systems in the World
-        - Serial and Parallel Schedules are going to be system holders
-        - The App will only contain an HashMap of these Schedules in every defined pass (update, render, etc)
-        - @TODO: We need to decide whether the number of passes are configurable or predetermined
 
-    [] Implement data extractors
-
+    [x] Implement data extractors
         @TODO Test the implementation
 
         - Design a dependency design model for systems
@@ -51,42 +32,23 @@ Another additional goal of this project is to actually explore how this architec
             3. Start executing from the top.
             4. Ensure that lock acquisition are done in a transaction using semaphores
 
-        - [x]  Write read and write functions for EventReaders and EventWriters. These read and write methods are responsible for:
-            1. Going through the vec to see if the type matches the one specified to the reader
-            2. If yes, convert that type to the required local type and 
-            return
-            3. In case of writer, the writer should construct the Event and send it as a Box
-        - [x] Write Event implemting macros - ECSBase + Event
-
-        
-        - [x] Design and Write Query extractor
-            - [x] Decide if we need Query to be of different types (Mutable and immutable)
-            (We do need that)
-
         - [] Design and write a ComponentHandle extractor
 
 
     [] Find a design which allows us to restrict the type of system (single run, event?, etc) 
     (This should be controlled as an option in a Schedule (systems have to be in a schedule, then this schedule is responsible for determining at what frequency the systems in the schedule should run, much like bevy_ecs))
 
-
-[x] Write a macro for implementing system param such that the implementor only needs to implement the initialise function, as the implementation of all other functions is common.
-
-[x] Design and write a CommandBuffer writer for Scheduler, where a CommandBuffer is going to implement a SystemParam trait
-
-[x] Implement Schedule flow architecture.
-    - [x] Find a solution to add support for flow execution frequency. (Initialiser get executed once, Updates get executed every frame)
-
 [] Redesign Schedule flow to an acceptable solution.
     - We are facing a problem where we cannot have nested 
     schedules with the API we have for schedulables (The schedulable API is suited for systems only).
     We need to find a solution to that.
 
-[] Write a SystemQueryMut version of SystemQuery
-
 
 [x] Design Event flow (See notes.md -> Processing Events Internally)
 
+[] Implement the Design flow
+
+[] Write tests for all data extractors
 
 # Optional
 

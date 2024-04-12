@@ -3,7 +3,7 @@ use std::{
 };
 
 use crate::ECSBase;
-use ecs_macros::ECSBase;
+use ecs_macros::{ECSBase, SystemParam};
 
 use crate::{
     component::{Component, handles::{ComponentHandle, MutComponentHandle}},
@@ -11,7 +11,7 @@ use crate::{
     world::{unsafe_world::UnsafeWorldContainer, World},
 };
 
-use super::SystemParam;
+use super::{InitError, SystemParam};
 
 pub(crate) trait SystemQuery {
     type EntityComponentHandleTuple;
@@ -37,8 +37,6 @@ pub(crate) trait SystemQuery {
 
 
 
-// @DONE: Change this implementation to store Arc based structs 
-//          after making the corresponding changes in the component manager
 macro_rules! query_systems {
     ($($param: ident),*) => {
 
@@ -148,23 +146,58 @@ ecs_macros::implement_tuples!(query_systems, 0, 20, F);
 ///     (NOTE: This has a high chance of resulting in a deadlock through mutual starvation)
 ///
 /// 
-#[derive(ECSBase)]
+#[derive(SystemParam)]
 pub struct Query<T: SystemQuery> {
     entity_tuple_vec: Vec<<T as SystemQuery>::EntityComponentHandleTuple>,
 }
 
 /// SAFETY: See SAFETY at [SystemParam]
-unsafe impl<T: SystemQuery> Sync for Query<T>{}
+// unsafe impl<T: SystemQuery> Sync for Query<T>{}
 
 impl<T: SystemQuery + 'static> SystemParam for Query<T> 
 {
-    fn initialise(world: *mut World) -> Option<Self> where Self: Sized {
+    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) where Self: Sized {
+        // SystemQueries
         if let Some(extracted_tuples) = T::get_components_for_entities(world) {
-            Some(Self{ 
+            if extracted_tuples.len() == 0 {
+                // There's no point in running the system if its going to run with 
+                // no elements in the query.
+                // @NOTE: This could however present a situation where
+                //      the user does not know this behavior for query
+                // @TODO: Document this behavior in both Query structs
+                return (Some(InitError{}), None)
+            }
+            (None,Some(Self{ 
                 entity_tuple_vec: extracted_tuples
-            })
+            }))
         } else {
-            None
+            (None, None)
         }
     }
 }
+
+#[derive(SystemParam)]
+pub struct QueryMut<T: SystemQuery> {
+    entity_tuple_vec: Vec<<T as SystemQuery>::EntityMutComponentHandleTuple>,
+}
+impl<T: SystemQuery + 'static> SystemParam for QueryMut<T> 
+{
+    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) where Self: Sized {
+        if let Some(extracted_tuples) = T::get_mut_components_for_entities(world) {
+            if extracted_tuples.len() == 0 {
+                // There's no point in running the system if its going to run with 
+                // no elements in the query.
+                // @NOTE: This could however present a situation where
+                //      the user does not know this behavior for query
+                // @TODO: Document this behavior in both Query structs
+                return (Some(InitError{}), None)
+            }
+            (None,Some(Self{ 
+                entity_tuple_vec: extracted_tuples
+            }))
+        } else {
+            (None, None)
+        }
+    }
+}
+// @TODO: Implement iterators for all query types

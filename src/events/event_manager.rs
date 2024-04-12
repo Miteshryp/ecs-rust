@@ -56,23 +56,6 @@ impl EventManager {
             }),
             None => None
         }
-            // @ERROR
-            // This line potentially creates conflict in a parallel
-            // system (When 2 different system try to read resource which does not exists,
-            // It may end up in 2 insert operations. Although at the end only a new empty vec
-            // should be inserted, it is still a potential threat.)
-
-            // @FIX
-            // We removed the mechanism for auto inserting unregistered event,
-            // and now we simply return a None if the requested event is not 
-            // registered with the world
-
-
-            // self.events.insert(E::type_id(), vec![]);
-            // EventReader {
-            //     reader: self.events.get(&E::type_id()).unwrap(),
-            //     _marker: std::marker::PhantomData
-            // }
     }
 
     pub fn get_writer(&mut self) -> EventWriter {

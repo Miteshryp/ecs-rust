@@ -1,7 +1,13 @@
-pub(crate) mod unsafe_world;
 pub mod command_type;
+pub(crate) mod unsafe_world;
 
-use std::{any::TypeId, sync::{mpsc::{channel, Receiver, Sender}, Arc}};
+use std::{
+    any::TypeId,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc,
+    },
+};
 
 use tokio::sync::{
     OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -17,7 +23,9 @@ use crate::{
     entity::{entity_manager::EntityManager, Entity},
     events::{event_manager::EventManager, Event},
     resource::{Resource, ResourceId},
-    system::param::{EventReader, EventWriter, MutResourceHandle, SystemQuery},
+    system::param::{
+        EventReader, EventWriter, MutResourceHandle, ResourceFetchResult, SystemQuery,
+    },
 };
 
 use self::command_type::CommandFunction;
@@ -61,7 +69,6 @@ pub struct World {
 
     command_sender: Sender<CommandFunction>,
     // command_receiver: Receiver<CommandFunction>,
-
     /// Resources present in the world
     resources: HashMap<ResourceId, Arc<RwLock<Box<dyn Resource>>>>,
 }
@@ -175,8 +182,6 @@ impl World {
         self.entity_manager.dispose_entity_id(entity_id);
     }
 
-    
-
     ///### Description
     ///
     /// Registers a component type in the manager by creating a
@@ -200,7 +205,6 @@ impl World {
 
     /// Adding resource to the world
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
-
         // @TODO: Remove assertion and write option based logic
         assert!(!self.resources.contains_key(&R::type_id()));
 
@@ -211,11 +215,8 @@ impl World {
             .insert(R::type_id(), Arc::new(RwLock::new(Box::new(resource))));
     }
 
-    pub fn remove_resource<R: Resource + Sized + 'static>(&mut self) {
+    pub fn remove_resource<R: Resource + Sized + 'static>(&mut self) {}
 
-    }
-
-    
     ///
     /// ### Description
     ///
@@ -274,7 +275,7 @@ impl World {
     /// in the system will result in a panic
     ///
     pub fn has_component<C: Component + Sized + 'static>(&self, entity_id: Entity) -> bool {
-        // @TODO: Remove assertion and add Option or Result here 
+        // @TODO: Remove assertion and add Option or Result here
         assert!(
             self.check_component_registered::<C>(),
             "Component not registered for use {}",
@@ -304,19 +305,15 @@ impl World {
     //     system.get_entities()
     // }
 
-    
-
     pub fn update_event_state(&mut self) {
         self.event_manager.refresh_update();
     }
 
-    /// 
+    ///
     /// ### Description
-    /// 
+    ///
     /// Update the world based on the command buffers received
-    pub fn update_world(&mut self) {
-
-    }
+    pub fn update_world(&mut self) {}
 
     pub fn set_active(&mut self, active: bool) {
         self.active = active;
@@ -377,17 +374,22 @@ impl World {
     /// Returns an Owned Write Guard to a resource in the world
     ///
     // @TODO: Change function name to be more suitable
+    // pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
+    //     &mut self,
+    // ) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
+
     pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
         &mut self,
-    ) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
+    ) -> (
+        ResourceFetchResult,
+        Option<OwnedRwLockWriteGuard<Box<dyn Resource>>>,
+    ) {
         match self.resources.get(&R::type_id()) {
-            Some(x) => {
-                match x.clone().try_write_owned() {
-                    Ok(lock) => Some(lock),
-                    Err(_) => None,
-                }
+            Some(x) => match x.clone().try_write_owned() {
+                Ok(lock) => (ResourceFetchResult::Success, Some(lock)),
+                Err(_) => (ResourceFetchResult::Occupied, None),
             },
-            None => None,
+            None => (ResourceFetchResult::DoesNotExist, None),
         }
 
         // match self
@@ -402,18 +404,18 @@ impl World {
         // }
     }
 
-
+    // pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
+    //     &self,
+    // ) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
     pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
         &self,
-    ) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
+    ) -> (ResourceFetchResult, Option<OwnedRwLockReadGuard<Box<dyn Resource>>>) {
         match self.resources.get(&R::type_id()) {
-            Some(x) => {
-                match x.clone().try_read_owned() {
-                    Ok(lock) => Some(lock),
-                    Err(_) => None,
-                }
+            Some(x) => match x.clone().try_read_owned() {
+                Ok(lock) => (ResourceFetchResult::Success, Some(lock)),
+                Err(_) => (ResourceFetchResult::Occupied, None),
             },
-            None => None,
+            None => (ResourceFetchResult::DoesNotExist, None),
         }
 
         // match self
@@ -427,7 +429,6 @@ impl World {
         //     Err(_) => None,
         // }
     }
-
 
     ///
     /// ### Description
@@ -477,14 +478,7 @@ impl World {
         active_entities
     }
 
-
-    // pub(crate) fn get_command_receiver(&self) -> Receiver<CommandFunction> {
-    //     self.command_receiver.
-    // }
-
-
     pub(crate) fn get_command_writer(&self) -> Sender<CommandFunction> {
         self.command_sender.clone()
     }
-
 }

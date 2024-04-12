@@ -10,12 +10,35 @@ pub use command_buffer::*;
 
 
 use std::{
-    any::{Any, TypeId},
+    any::{Any, TypeId}, error::Error, path::Display,
 };
 
 use crate::{
     ecs_base::ECSBase, world::World
 };
+
+
+#[derive(Debug)]
+pub struct InitError {}
+impl Error for InitError {
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+    
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+    
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+}
+
+impl std::fmt::Display for InitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Initialisation of a requested System Param failed")
+    }
+}
 
 
 /// 
@@ -45,10 +68,12 @@ pub trait SystemParam: ECSBase {
     /// by the system are freed by the world system to avoid resource starvation
     /// in a parallel setting.
     /// 
+    /// Passing an InitError will result in the system execution being skipped
+    /// 
     /// @NOTE: We need the mutable pointer to be passed in the initialise function.
     ///     See [ResourceHandle] or [MutResourceHandle] docs for more info
-     
-    fn initialise(world: *mut World) -> Option<Self> where Self: Sized;
+    
+    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) where Self: Sized;
 }
 
 

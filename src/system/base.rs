@@ -1,4 +1,4 @@
-use super::{dependency::SystemDependencies, param::SystemParam};
+use super::{dependency::SystemDependencies, param::{InitError, SystemParam}};
 use ecs_macros::implement_tuples;
 use log;
 use crate::{
@@ -9,38 +9,14 @@ use super::System;
 use crate::schedule::Schedulable;
 use crate::schedule::IntoSchedulable;
 
-// pub trait System {
-//     fn acquire_dependencies(&mut self, world_container: &UnsafeWorldContainer);
-//     fn run_system(&mut self);
-//     // fn run_system(&mut self, world_container: &UnsafeWorldContainer);
-// }
 
-// @DONE: Update SerialSystemExecutor use case in the SystemHolder 
-//          struct. SystemHolder needs to run the system, 
-//          but it can no longer run it since both interfaces
-//          need different parameters now.
-//  
-//          Changed architecture for trait implementation on functions
-//          and Scheduling system
-
-// /// ### Definition
-// /// A trait which is implemented on all desired function types.
-// /// The implementation is carried by the [`implement_system_function`](Self::implementation_system_function)
-// /// macro
-// ///
+// @TODO Document
 // /// NOTE:
 // /// The marker has to exist as a generic parameters in order to distinguish
 // /// the implementation of [SerialSystemExecutor] for different types of FnMut()
-// pub trait SerialSystemExecutor<Marker> {
-//     fn run(&mut self, world: &UnsafeWorldContainer);
-// }
-
-// pub trait ParallelSystemExecutor<Marker> {
-//     fn run(&mut self, world: &UnsafeWorldContainer, atomic_lock: &std::sync::Mutex<u32>);
-// }
 
 pub trait SystemExtractor<MarkerFunc> {
-    fn extract_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<SystemDependencies>; 
+    fn extract_dependencies(&mut self, world: &UnsafeWorldContainer) -> (Option<InitError>, Option<SystemDependencies>); 
 }
 
 
@@ -80,27 +56,33 @@ macro_rules! impl_system_function {
         where
             Func: Send + Sync + 'static + FnMut($($param),*) -> ()
         {
-            fn extract_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<SystemDependencies> {
+            fn extract_dependencies(&mut self, world: &UnsafeWorldContainer) -> (Option<InitError>, Option<SystemDependencies>) {
                 let mut dependencies = SystemDependencies::new();
                 // Create extractor instances for supplied extractor types.
                 $(
                     let $param = match $param::initialise(world.get_world_mut()) {
-                        Some(x) => x,
+                        (None, Some(x)) => x,
 
                         // If any one of the extractor acquisition fails, we 
                         // cleanup all the extractors which were successful by 
                         // leaving the function. 
-                        None => {
+                        (None, None) => {
+                            let err_str = "System faced contention. Will retry in next iteration";
                             log::error!(
-                                "System failed to initialise extractors in a serial schedule"
+                                "{err_str}"
+                                // "System failed to initialise extractors in a serial schedule"
                             );
-                            return None
-                        }
+                            return (None, None)
+                        },
+
+                        (Some(x), None) => return (Some(x), None),
+
+                        _ => panic!("Invalid initialisation result")
                     };
                     dependencies.push_dependency::<$param>($param);
                 )*
 
-                Some(dependencies)
+                (None, Some(dependencies))
             }
         }
 

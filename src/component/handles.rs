@@ -45,10 +45,6 @@ pub struct ComponentHandle<C: Component + 'static> {
     inner: OwnedRwLockReadGuard<C>
 }
 
-// pub struct ComponentHandle<C: Component + 'static> {
-//     inner_boxed_component: Box<RwLockReadGuard<'static,C>>
-// }
-
 impl<C: Component + 'static> ComponentHandle<C> {
     pub fn new(lock: OwnedRwLockReadGuard<C>) -> Self {
         ComponentHandle {

@@ -1,15 +1,14 @@
 use std::sync::mpsc::Sender;
 
 use ecs_macros::SystemParam;
-use crate::component::Component;
 use crate::system::SystemParam;
 use crate::ecs_base::ECSBase;
 use crate::world::command_type::{CommandFunction, CommandType};
 use crate::world::World;
 
+use super::InitError;
 
 
-// CommandBufferReader
 
 #[derive(SystemParam)]
 pub struct CommandBufferWriter {
@@ -17,11 +16,14 @@ pub struct CommandBufferWriter {
 }
 
 impl SystemParam for CommandBufferWriter {
-    fn initialise(world: *mut crate::world::World) -> Option<Self> where Self: Sized {
+    fn initialise(world: *mut crate::world::World) -> (Option<InitError>, Option<Self>) where Self: Sized {
         unsafe {
-            Some(Self {
-                writer_channel: (*world).get_command_writer()
-            })
+            (
+                None,
+                Some(Self {
+                    writer_channel: (*world).get_command_writer()
+                })
+            )   
         }
     }
 }

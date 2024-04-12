@@ -52,22 +52,20 @@ impl SampleTrait for SampleResource {
     }
 }
 
-// fn init(writer: CommandBufferWriter) {
-//     println!("Here");
-//     writer.add_command(|world: &mut World| {
-//         let s = SampleResource {i:45};
-//         world.add_resource(s);
-//     })
-// }
+fn init(writer: CommandBufferWriter) {
+    println!("Here");
+    writer.add_command(|world: &mut World| {
+        let s = SampleResource {i:45};
+        world.add_resource(s);
+    })
+}
 
 fn test_system(mut handle: ResourceHandle<SampleResource>) {
-    let res = handle.get_resource();
-    println!("Sys A {}", res.i);
+    println!("Sys A {}", handle.i);
 }
 
 fn test_system2(mut handle: ResourceHandle<SampleResource>) {
-    let res = handle.get_resource();
-    println!("New System {}", res.i);
+    println!("New System {}", handle.i);
 }
 
 fn param_func(t: (i32, i32)) {}
@@ -83,19 +81,19 @@ impl SampleTrait for (S1, S2) {
 fn main() {
     let mut app = App::new();
 
-    // let mut once_schedule = ParallelSchedule::new();
-    // once_schedule.add_boxed(init.into_schedulable());
+    let mut once_schedule = ParallelSchedule::new();
+    once_schedule.add_boxed(init.into_schedulable());
 
     let mut schedule = ParallelSchedule::new();
     schedule.add_boxed(test_system.into_schedulable());
     schedule.add_boxed(test_system2.into_schedulable());
 
     // Init flow
-    // let init_index = app.register_flow(schedule::FlowFrequency::Once);
+    let init_index = app.register_flow(schedule::FlowFrequency::Once);
     let update = app.register_flow(schedule::FlowFrequency::Always);
 
     // app.register_component::()
-    // app.add_to_flow(init_index, once_schedule);
+    app.add_to_flow(init_index, once_schedule);
     app.add_to_flow(update, schedule);
 
     loop {

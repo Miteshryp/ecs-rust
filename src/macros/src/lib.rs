@@ -4,7 +4,6 @@ use proc_macro::{TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
 use syn::{self, parse_macro_input, token::Token, Ident};
 use utils::AllTuples;
-// use system::derive_resource_system;
 
 mod base;
 mod component;
@@ -14,62 +13,8 @@ mod system;
 mod utils;
 mod system_param;
 
-/// ### ECS System derive
-///
-/// Used to implement the internal `BaseSystem` structure fitting to the
-/// component system.
-///
-///
-/// After declaring the struct as a `ComponentSystem`, the user can
-/// implement the `System` trait on the struct. Once this process is
-/// complete, the [`App`](ecs_rust::App) class can register the system as a component
-/// system.
-///
-/// ---
-///
-/// ### Example:
-///
-/// ```
-///
-/// #[derive(Component)]
-/// struct Position {
-///     x: f32,
-///     y: f32
-/// }
-///
-/// #[derive(ComponentSystem)]
-/// struct PositionSystem {
-///     // .. (We can declare a system specific state if we want to)
-/// }
-///
-/// impl ComponentSystem for PositionSystem {
-///     type ComponentType = Position;
-///
-///     fn on_update(&self, world: WorldArg, entity_id: EntityId, component: &mut TestComponent) {
-///         // update logic for the component
-///     }
-/// }
-///
-/// fn main() {
-///     let app = App::new();
-///     app.add_component_system(PositionSystem {});
-///     ...
-///     ... // component addition
-///     app.start();
-///         
-/// }
-///
-/// ```
-///
-/// @DONE: Add different types of events in the future
-///     Changed the architecture for events itself, so this 
-///     no longer applies
-///
-// #[proc_macro_derive(ComponentSystem)]
-// pub fn system_derive(input: TokenStream) -> TokenStream {
-//     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-//     system::derive_component_system(ast)
-// }
+
+
 
 /// ### ECS Component derive
 ///
