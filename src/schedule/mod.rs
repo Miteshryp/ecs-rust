@@ -1,13 +1,32 @@
 use crate::world::unsafe_world::UnsafeWorldContainer;
 
-pub mod serial;
+pub mod holder;
 pub mod parallel;
+
+pub enum FlowFrequency {
+    Once = 0,
+    Always = 1,
+    Alternate = 2// runs every 2 executions
+}
+
+impl Clone for FlowFrequency {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Once => Self::Once,
+            Self::Always => Self::Always,
+            Self::Alternate => Self::Alternate,
+        }
+    }
+}
+impl Copy for FlowFrequency {}
+
 
 
 pub trait Schedule {
     fn run_schedule(&mut self, world: &UnsafeWorldContainer);
-    fn add<S: Schedulable + 'static>(&mut self, item: S);
     fn add_boxed(&mut self, item: Box<dyn Schedulable>);
+
+    // fn set_schedule_frequency(&mut self, freq: ScheduleFrequency);
 }
 
 
@@ -26,5 +45,6 @@ pub trait Schedulable: Send + Sync {
 
 
 pub trait IntoSchedulable<Marker> {
-    fn into_schedulable(self) -> Box<dyn Schedulable>;
+    type Output: Schedulable + 'static;
+    fn into_schedulable(self) -> Box<Self::Output>;
 }

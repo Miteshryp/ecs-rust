@@ -11,9 +11,9 @@ pub(crate) fn derive_resource(mut ast: DeriveInput) -> proc_macro::TokenStream {
     let generate = quote! {
         #base_impl
         impl Resource for #type_name {
-            fn get_name(&self) -> String {
-                String::from(stringify!(#type_name))
-            }
+            // fn get_name(&self) -> String {
+            //     String::from(stringify!(#type_name))
+            // }
         }
     };
     generate.into()

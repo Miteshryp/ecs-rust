@@ -22,14 +22,6 @@ pub(crate) fn derive_component(mut ast: syn::DeriveInput) -> TokenStream {
             fn get_name() -> String {
                 String::from(stringify!(#type_name))
             }
-
-        //     fn as_any(&self) -> &dyn Any {
-        //         self as &dyn Any
-        //     }
-
-        //     fn as_any_mut(&mut self) -> &mut dyn Any {
-        //         self as &mut dyn Any
-        //     }
         }
     };
 

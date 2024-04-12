@@ -1,31 +1,20 @@
 use ecs_macros::ECSBase;
 
 use super::Component;
-use crate::{
-    ecs_base::ECSBase,
-    entity::{Entity},
-};
+use crate::{ecs_base::ECSBase, entity::Entity};
 
-use std::{
-    any::{Any, TypeId},
-    cell::{Ref, RefCell, RefMut}, sync::Arc,
-};
+use std::{any::TypeId, sync::Arc};
 
-use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
-
-// @TODO: Change the system to use tokio::RwLock
-//      so that the acquired locks can be passed around
-// use tokio::sync::{RwLock, OwnedRwLockReadGuard};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 
 use hashbrown::HashMap;
 
-/// 
+///
 /// ### Description
-/// 
+///
 /// Interface of Component Manager which is to be exposed to the world
 /// struct.
-/// 
+///
 pub trait EcsManager: ECSBase {
     fn new() -> Self
     where
@@ -64,13 +53,13 @@ where
 {
     /// Contiguous array of components which enables us to do faster
     /// update operations due to better cache locality.
-    /// 
+    ///
     /// RefCell dynamically checks the mutable references to a component,
     /// hence we cannot have illegal reference to a component
-    /// 
-    /// @TODO: We need to remove RefCell as they are not safe across 
+    ///
+    /// @TODO: We need to remove RefCell as they are not safe across
     /// thread boundaries
-    /// 
+    ///
     // components: Vec<RefCell<Comp>>,
     components: Vec<Arc<RwLock<Comp>>>,
 
@@ -93,7 +82,9 @@ impl<Comp> EcsManager for ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
-    /// System initialisation function. Used to create a new system to handle the specified type of component
+    /// ### Description
+    ///
+    /// Used to create a new manager to handle the specified type of component
     fn new() -> Self {
         ComponentManager {
             components: vec![],
@@ -102,9 +93,12 @@ where
         }
     }
 
+    /// ### Description
+    ///
     /// Removes a component from the entity if the component was attached,
     fn remove_component_from_entity(&mut self, entity_id: Entity) {
         // Entity must have a component of type [`Comp`] attached for removal to be possible
+        // @TODO: Remove assertion and add result based code
         assert!(
             self.entity_component_map.contains_key(&entity_id),
             "Entity [{:?}] does not have a component of type \'{}\'",
@@ -143,11 +137,11 @@ where
     fn has_component(&self, entity_id: Entity) -> bool {
         self.entity_component_map.contains_key(&entity_id)
     }
-    
+
     ///
     /// ### Description
-    /// 
-    /// Returns an array of all active [`EntityId`](Entity)s which have 
+    ///
+    /// Returns an array of all active [`EntityId`](Entity)s which have
     /// the [`Component`] of type ['Comp'](ComponentManager<Comp>) attached to them
     fn get_entities(&self) -> Vec<&Entity> {
         self.entity_ids.iter().collect()
@@ -159,10 +153,12 @@ impl<Comp> ComponentManager<Comp>
 where
     Comp: Component + 'static,
 {
+    /// ### Description
+    ///
     /// Adds a component into the system based on the stack-build object passed
     /// as a parameter
     pub fn add_component_to_entity(&mut self, entity_id: Entity, component: Comp) {
-        // Entity should not already have the component attached to it.
+        // @TODO: Remove assertion and implement results based function
         assert!(
             !self.entity_component_map.contains_key(&entity_id),
             "Component addition to Entity [{:?}] failed: Duplicate components are not allowed in entities.", 
@@ -171,138 +167,68 @@ where
 
         let component_index = self.components.len();
 
-        // self.components.push(RefCell::new(component));
-
         self.components.push(Arc::new(RwLock::new(component)));
         self.entity_ids.push(entity_id);
         self.entity_component_map.insert(entity_id, component_index);
     }
 
-    /// 
-    /// ### Description
-    /// Used to get a immutable reference to a component in the manager
-    ///
-    /// #### SAFETY:
-    /// [`components`](ComponentManager::components) is protected by a [`RefCell`], hence the reference
-    /// to the component cannot be used illegally.
-    // pub fn borrow_component(&self, entity_id: Entity) -> Option<Ref<'_, Comp>> {
-    //     let component_index = match self.entity_component_map.get(&entity_id) {
-    //         Some(x) => x,
-    //         None => {
-    //             log::error!("borrow_component_mut failed:");
-    //             log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
-    //             return None;
-    //         },
-    //     };
-
-    //     match self
-    //         .components[*component_index].try_borrow()
-    //     {
-    //             Ok(x) => Some(x),
-    //             Err(err) => {
-    //                 // Mutable reference is not possible
-    //                 log::error!(
-    //                     "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
-    //                     entity_id,
-    //                     TypeId::of::<Comp>(),
-    //                     err.to_string()
-    //                 );
-    //                 None
-    //             }
-    //     }
-    // }
+    // @TODO: Document
     pub fn borrow_component(&self, entity_id: Entity) -> Option<OwnedRwLockReadGuard<Comp>> {
         let component_index = match self.entity_component_map.get(&entity_id) {
             Some(x) => x,
             None => {
                 log::error!("borrow_component_mut failed:");
-                log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+                log::error!(
+                    "Component [id: {:?}] is not attached to Entity [id: {:?}]",
+                    TypeId::of::<Comp>(),
+                    entity_id
+                );
                 return None;
-            },
+            }
         };
 
-        match self
-            .components[*component_index].clone().try_read_owned()
-        {
-                Ok(x) => Some(x),
-                Err(err) => {
-                    // Mutable reference is not possible
-                    log::error!(
-                        "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
-                        entity_id,
-                        TypeId::of::<Comp>(),
-                        err.to_string()
-                    );
-                    None
-                }
+        match self.components[*component_index].clone().try_read_owned() {
+            Ok(x) => Some(x),
+            Err(err) => {
+                // Mutable reference is not possible
+                log::error!(
+                    "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+                    entity_id,
+                    TypeId::of::<Comp>(),
+                    err.to_string()
+                );
+                None
+            }
         }
     }
 
-    /// Used to get a mutable reference to a component in the manager
-    ///
-    /// #### SAFETY:
-    /// [`components`](ComponentManager::components) is protected by RefCell,
-    /// hence illegal code crashes at runtime.
-    /// Given that the validity of the world is protected by the scheduler, the
-    /// RefMut returned from this function is guaranteed to be valid.
-    // pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<RefMut<'_, Comp>> {
-    //     let component_index = match self.entity_component_map.get(&entity_id) {
-    //         Some(x) => x,
-    //         None => {
-    //             log::error!("borrow_component_mut failed:");
-    //             log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
-    //             return None;
-    //         },
-    //     };
-
-    //     match self
-    //         .components[*component_index].try_borrow_mut()
-    //     {
-    //             Ok(x) => Some(x),
-    //             Err(err) => {
-    //                 // Mutable reference is not possible
-    //                 log::error!(
-    //                     "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
-    //                     entity_id,
-    //                     TypeId::of::<Comp>(),
-    //                     err.to_string()
-    //                 );
-    //                 None
-    //             }
-    //     }
-    // }
+    // @TODO: Document
     pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<OwnedRwLockWriteGuard<Comp>> {
         let component_index = match self.entity_component_map.get(&entity_id) {
             Some(x) => x,
             None => {
                 log::error!("borrow_component_mut failed:");
-                log::error!("Component [id: {:?}] is not attached to Entity [id: {:?}]", TypeId::of::<Comp>(), entity_id);
+                log::error!(
+                    "Component [id: {:?}] is not attached to Entity [id: {:?}]",
+                    TypeId::of::<Comp>(),
+                    entity_id
+                );
                 return None;
-            },
+            }
         };
 
-        match self
-            .components[*component_index].clone().try_write_owned()
-        {
-                Ok(x) => Some(x),
-                Err(err) => {
-                    // Mutable reference is not possible
-                    log::error!(
-                        "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
-                        entity_id,
-                        TypeId::of::<Comp>(),
-                        err.to_string()
-                    );
-                    None
-                }
+        match self.components[*component_index].clone().try_write_owned() {
+            Ok(x) => Some(x),
+            Err(err) => {
+                // Mutable reference is not possible
+                log::error!(
+                    "Component [id: {:?}, type: {:?}] -> Mutable reference not possible. \n{}",
+                    entity_id,
+                    TypeId::of::<Comp>(),
+                    err.to_string()
+                );
+                None
+            }
         }
     }
-
-    
-    // Moved to EcsManager interface
-    // /// Gets a vec of &[id](Entity) of all the components currently
-    // /// alive in the manager
-    // pub fn get_all_component_ids(&self) -> Vec<&Entity> {
-    //     self.entity_ids.iter().collect()
-    // }
 }

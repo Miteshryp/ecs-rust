@@ -1,5 +1,8 @@
 use std::{any::{Any, TypeId}, marker::PhantomData, sync::mpsc::Sender};
 
+use crate::ECSBase;
+use ecs_macros::SystemParam;
+
 use crate::{events::Event, world::{unsafe_world::UnsafeWorldContainer, World}};
 
 use super::SystemParam;
@@ -9,6 +12,8 @@ use super::SystemParam;
 /// A [SystemParam] type used in systems to read events
 /// from [`EventManager`](crate::events::event_manager::EventManager) in a world.
 
+
+#[derive(SystemParam)]
 pub struct EventReader<E: Event + 'static> {
     pub(crate) reader: *const Vec<Box<dyn Event>>,
     pub(crate) _marker: PhantomData<E>,
@@ -25,28 +30,16 @@ impl<E: Event + 'static> EventReader<E> {
     }
 }
 
-// impl<E: Event + 'static> SystemParam for EventReader<E> {
-//     fn initialise(world: *mut World) -> Option<Self> {
-//         unsafe {
-//             Some((*world).get_event_reader())
-//         }
-//     }
-
-//     fn as_any(&self) -> &dyn Any {
-//         self as &dyn Any
-//     }
-
-//     fn as_any_mut(&mut self) -> &mut dyn Any{
-//         self as &mut dyn Any
-//     }
-
-//     fn type_id() -> TypeId
-//     where
-//         Self: Sized + 'static,
-//     {
-//         TypeId::of::<Self>()
-//     }
-// }
+impl<E: Event + 'static> SystemParam for EventReader<E> {
+    fn initialise(world: *mut World) -> Option<Self> {
+        unsafe {
+            match (*world).get_event_reader() {
+                Some(reader) => Some(reader),
+                None => None,
+            }
+        }
+    }
+}
 
 /// ## Description
 ///

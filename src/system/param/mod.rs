@@ -1,10 +1,12 @@
 mod query;
 mod event;
 mod resource;
+mod command_buffer;
 
 pub use query::*;
 pub use event::*;
 pub use resource::*;
+pub use command_buffer::*;
 
 
 use std::{
@@ -36,16 +38,6 @@ use crate::{
 /// 
 /// 
 pub trait SystemParam: ECSBase {
-    fn type_id() -> TypeId
-    where
-        Self: Sized + 'static,
-    {
-        TypeId::of::<Self>()
-    }
-
-    // fn as_any(&self) -> &dyn Any;
-    // fn as_any_mut(&mut self) -> &mut dyn Any;
-
     /// Interface to setup world extractor parameter to 
     /// fetch World state for functional systems.
     /// If the initialisation fails, it must return None to ensure

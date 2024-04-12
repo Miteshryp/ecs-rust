@@ -1,11 +1,11 @@
 pub(crate) mod unsafe_world;
+pub mod command_type;
 
-use std::{
-    any::TypeId,
-    sync::Arc,
+use std::{any::TypeId, sync::{mpsc::{channel, Receiver, Sender}, Arc}};
+
+use tokio::sync::{
+    OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
-
-use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use hashbrown::HashMap;
 
@@ -14,11 +14,13 @@ use crate::{
         component_manager::{ComponentManager, EcsManager},
         Component,
     },
-    resource::{Resource, ResourceId},
     entity::{entity_manager::EntityManager, Entity},
     events::{event_manager::EventManager, Event},
+    resource::{Resource, ResourceId},
     system::param::{EventReader, EventWriter, MutResourceHandle, SystemQuery},
 };
+
+use self::command_type::CommandFunction;
 
 /// ### World struct
 ///
@@ -54,12 +56,14 @@ pub struct World {
     /// Component systems based on component types
     component_managers: HashMap<TypeId, Box<dyn EcsManager>>,
 
+    // Event processing unit
     event_manager: EventManager,
 
+    command_sender: Sender<CommandFunction>,
+    // command_receiver: Receiver<CommandFunction>,
+
     /// Resources present in the world
-    // resources: HashMap<ResourceId, Box<dyn Resource>>,
-    // resources: HashMap<ResourceId, RwLock<Box<dyn Resource>> >,
-    resources: HashMap<ResourceId, Arc<RwLock<Box<dyn Resource>>> >,
+    resources: HashMap<ResourceId, Arc<RwLock<Box<dyn Resource>>>>,
 }
 
 /// Private member implementations
@@ -72,6 +76,8 @@ impl World {
         TypeId::of::<C>()
     }
 
+    /// ### Description
+    ///
     /// Checks if the component has been registered
     ///
     /// This validation must be performed before performing operations
@@ -86,7 +92,8 @@ impl World {
     //          response process for undefined behavior.
 
     ///
-    /// ### Description:
+    /// ### Description (Internal):
+    ///
     /// Returns a mutable reference of a [`ComponentSystem`] object
     /// which is present in the [`EntityManager`] object
     ///
@@ -106,6 +113,8 @@ impl World {
         return system;
     }
 
+    ///
+    /// ### Description (Internal):
     ///
     /// Returns an immutable reference of a [`ComponentSystem`] object
     /// which is present in the [`EntityManager`] object
@@ -128,7 +137,8 @@ impl World {
 }
 
 impl World {
-    pub fn new() -> Self {
+    pub fn new(command_sender: Sender<CommandFunction>) -> Self {
+        let (tx, rx) = channel::<CommandFunction>();
         Self {
             active: false,
             cleanup: false,
@@ -136,19 +146,20 @@ impl World {
             component_managers: HashMap::new(),
             event_manager: EventManager::new(),
             resources: HashMap::new(),
-            // acquisition_lock: Mutex::new(0)
+            command_sender,
         }
     }
 
-    /// Creates an entity in the world and returns its id
+    /// ### Description
+    ///
+    /// Creates an entity in the world and returns its [`id`](Entity)
     pub fn create_entity(&mut self) -> Entity {
         self.entity_manager.create_entity()
     }
 
-    pub fn generate_targeted_event(&mut self, receivers: Vec<TypeId>) {
-        // vec![]
-    }
-
+    ///
+    /// ### Description:
+    ///
     /// Removes an entity from the world and deallocates all components
     /// attached to it.
     pub fn remove_entity(&mut self, entity_id: Entity) {
@@ -164,54 +175,8 @@ impl World {
         self.entity_manager.dispose_entity_id(entity_id);
     }
 
-    ///
-    /// ### Description
-    /// 
-    ///  Returns an array of [`EntityIds`](Entity) which have the
-    /// components with the types specified in the input parameter
-    /// 
-    /// ### Parmameters
-    /// - `Query` [SystemQuery] type defining the components to be fetched 
-    ///         from the world 
-    /// 
-    // /// - `component_ids`: [`Vec<TypeId>`], where each [TypeId] should be the TypeId of a 
-    // ///     [`ComponentType`](Component) which has been registered in the world. 
-    // ///     Passing a non-component type or unregistered component type will result in 
-    // ///     an empty array
-    pub fn get_entities_with_components<QueryType: SystemQuery>(&self) -> hashbrown::HashSet<&Entity> {
-
-        // Getting all active entities in the world
-        // Initially we assume it asks for all entities
-        let mut active_entities = self.entity_manager.get_active_entities();
-        
-        // Array of TypeId of Components that the query demands
-        let component_ids = QueryType::get_query_entities();
-        
-        // Finding appropriate component manager for each type
-        for cid in component_ids {
-            let component_manager = match self.component_managers.get(&cid) {
-                Some(x) => x,
-                None => {
-                    log::error!(
-                        "Failed to get manager: TypeId {:?} does not belong to a registered component",
-                        cid
-                    );
-                    return hashbrown::HashSet::new()
-                },
-            };
-
-            // We only keep the intersection of entities with all the previous
-            // component and the entities with the current component.
-            // This ensures that we only shortlist entities which have 
-            // all the enlisted components attached to them
-            let component_entities: hashbrown::HashSet<&Entity> = component_manager.get_entities().into_iter().collect();
-            active_entities = component_entities.intersection(&active_entities).cloned().collect();
-        }
-
-        active_entities
-    }
-
     
+
     ///### Description
     ///
     /// Registers a component type in the manager by creating a
@@ -235,47 +200,22 @@ impl World {
 
     /// Adding resource to the world
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
-        assert!(!self.resources.contains_key(&R::get_type()));
+
+        // @TODO: Remove assertion and write option based logic
+        assert!(!self.resources.contains_key(&R::type_id()));
 
         // self.resources.insert(R::get_type(), Box::new(resource));
         // self.resources.insert(R::get_type(), RwLock::new(Box::new(resource)));
 
-        self.resources.insert(R::get_type(), Arc::new(RwLock::new(Box::new(resource))));
+        self.resources
+            .insert(R::type_id(), Arc::new(RwLock::new(Box::new(resource))));
     }
 
-    /// Returns a Write Guard to a resource in the world
-    /// 
-    /// @SAFETY: The returned guard is supplied in a Box, which can be 
-    /// handled by the user manually if required, but in any such case (MutResourceHandle),
-    /// the proper release of the lock is a must for smooth operation.
-    // pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<Box<RwLockWriteGuard<'_, Box<dyn Resource>>>> {
-    //     match self.resources.get(&R::get_type()).unwrap().write() {
-    //         Ok(x) => Some(Box::new(x)),
-    //         Err(_) => None,
-    //     }
-    // }
+    pub fn remove_resource<R: Resource + Sized + 'static>(&mut self) {
 
-    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(&mut self) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
-        match self.resources.get(&R::get_type()).unwrap().clone().try_write_owned() {
-            Ok(x) => Some(x),
-            Err(_) => None,
-        }
     }
+
     
-    // pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<Box<RwLockReadGuard<'_, Box<dyn Resource>>>> {
-    //     match self.resources.get(&R::get_type()).unwrap().read() {
-    //         Ok(x) => Some(Box::new(x)),
-    //         Err(_) => None
-    //     }
-    // }
-
-    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(&self) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
-        match self.resources.get(&R::get_type()).unwrap().clone().try_read_owned() {
-            Ok(x) => Some(x),
-            Err(_) => None
-        }
-    }
-
     ///
     /// ### Description
     ///
@@ -334,6 +274,7 @@ impl World {
     /// in the system will result in a panic
     ///
     pub fn has_component<C: Component + Sized + 'static>(&self, entity_id: Entity) -> bool {
+        // @TODO: Remove assertion and add Option or Result here 
         assert!(
             self.check_component_registered::<C>(),
             "Component not registered for use {}",
@@ -358,14 +299,48 @@ impl World {
     /// ### Returns
     ///
     /// A pair of Component and Entity references.
-    pub fn get_all_component_ids<C: Component + 'static>(&self) -> Vec<&Entity> {
-        let system = self.get_manager::<C>();
-        system.get_entities()
+    // pub fn get_all_component_ids<C: Component + 'static>(&self) -> Vec<&Entity> {
+    //     let system = self.get_manager::<C>();
+    //     system.get_entities()
+    // }
+
+    
+
+    pub fn update_event_state(&mut self) {
+        self.event_manager.refresh_update();
     }
 
+    /// 
+    /// ### Description
+    /// 
+    /// Update the world based on the command buffers received
+    pub fn update_world(&mut self) {
+
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+}
+
+impl World {
+    // @SOLVED: If parallel systems try to create an event reader for the same event type
+    // which hasn't been used previously, it may cause trouble to create the vector for the
+    // event type
+    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> Option<EventReader<E>> {
+        self.event_manager.get_reader()
+    }
+
+    pub(crate) fn get_event_writer(&mut self) -> EventWriter {
+        self.event_manager.get_writer()
+    }
 
     // @TODO: Document
-    pub fn get_component_ref_mut_lock<C: Component + 'static>(
+    pub(crate) fn get_component_ref_mut_lock<C: Component + 'static>(
         &mut self,
         entity_id: Entity,
     ) -> Option<OwnedRwLockWriteGuard<C>> {
@@ -382,9 +357,7 @@ impl World {
         }
     }
 
-
-
-    pub fn get_component_ref_lock<C: Component + 'static>(
+    pub(crate) fn get_component_ref_lock<C: Component + 'static>(
         &mut self,
         entity_id: Entity,
     ) -> Option<OwnedRwLockReadGuard<C>> {
@@ -401,36 +374,117 @@ impl World {
         }
     }
 
-    
+    /// Returns an Owned Write Guard to a resource in the world
+    ///
+    // @TODO: Change function name to be more suitable
+    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
+        &mut self,
+    ) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
+        match self.resources.get(&R::type_id()) {
+            Some(x) => {
+                match x.clone().try_write_owned() {
+                    Ok(lock) => Some(lock),
+                    Err(_) => None,
+                }
+            },
+            None => None,
+        }
 
-    pub fn update_event_state(&mut self) {
-        self.event_manager.refresh_update();
+        // match self
+        //     .resources
+        //     .get(&R::type_id())
+        //     .unwrap()
+        //     .clone()
+        //     .try_write_owned()
+        // {
+        //     Ok(x) => Some(x),
+        //     Err(_) => None,
+        // }
     }
 
-    pub fn set_active(&mut self, active: bool) {
-        self.active = active;
+
+    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
+        &self,
+    ) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
+        match self.resources.get(&R::type_id()) {
+            Some(x) => {
+                match x.clone().try_read_owned() {
+                    Ok(lock) => Some(lock),
+                    Err(_) => None,
+                }
+            },
+            None => None,
+        }
+
+        // match self
+        //     .resources
+        //     .get(&R::type_id())
+        //     .unwrap()
+        //     .clone()
+        //     .try_read_owned()
+        // {
+        //     Ok(x) => Some(x),
+        //     Err(_) => None,
+        // }
     }
 
-    pub fn is_active(&self) -> bool {
-        self.active
+
+    ///
+    /// ### Description
+    ///
+    ///  Returns an array of [`EntityIds`](Entity) which have the
+    /// components with the types specified in the input parameter
+    ///
+    /// ### Parmameters
+    /// - `Query` [SystemQuery] type defining the components to be fetched
+    ///         from the world
+    ///
+    pub(crate) fn get_entities_with_components<QueryType: SystemQuery>(
+        &self,
+    ) -> hashbrown::HashSet<&Entity> {
+        // Getting all active entities in the world
+        // Initially we assume it asks for all entities
+        let mut active_entities = self.entity_manager.get_active_entities();
+
+        // Array of TypeId of Components that the query demands
+        let component_ids = QueryType::get_query_entities();
+
+        // Finding appropriate component manager for each type
+        for cid in component_ids {
+            let component_manager = match self.component_managers.get(&cid) {
+                Some(x) => x,
+                None => {
+                    log::error!(
+                        "Failed to get manager: TypeId {:?} does not belong to a registered component",
+                        cid
+                    );
+                    return hashbrown::HashSet::new();
+                }
+            };
+
+            // We only keep the intersection of entities with all the previous
+            // component and the entities with the current component.
+            // This ensures that we only shortlist entities which have
+            // all the enlisted components attached to them
+            let component_entities: hashbrown::HashSet<&Entity> =
+                component_manager.get_entities().into_iter().collect();
+            active_entities = component_entities
+                .intersection(&active_entities)
+                .cloned()
+                .collect();
+        }
+
+        active_entities
     }
-}
 
 
+    // pub(crate) fn get_command_receiver(&self) -> Receiver<CommandFunction> {
+    //     self.command_receiver.
+    // }
 
 
-
-
-impl World {
-    // @WARNING @IMPORTANT
-    // @SAFETY: If parallel systems try to create an event reader for the same event type
-    // which hasn't been used previously, it may cause trouble to create the vector for the 
-    // event type
-    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> Option<EventReader<E>> {
-        self.event_manager.get_reader()
+    pub(crate) fn get_command_writer(&self) -> Sender<CommandFunction> {
+        self.command_sender.clone()
     }
 
-    pub(crate) fn get_event_writer(&mut self) -> EventWriter {
-        self.event_manager.get_writer()
-    }
 }

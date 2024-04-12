@@ -20,6 +20,7 @@ use crate::ECSBase;
 ///         to make it think that the reference is static.
 
 // @TODO: Replace with SystemParam derive
+// @TODO: Add a Deref trait for automatically deducing the type
 #[derive(ECSBase)]
 pub struct ResourceHandle<R: Resource + 'static>
 where
@@ -28,15 +29,6 @@ where
     inner_guard_box: OwnedRwLockReadGuard<Box<dyn Resource>>,
     _marker: PhantomData<R>,
 }
-
-// #[derive(ECSBase)]
-// pub struct ResourceHandle<R: Resource + 'static>
-// where
-//     R: Resource,
-// {
-//     inner_guard_box: Box<RwLockReadGuard<'static, Box<dyn Resource>>>,
-//     _marker: PhantomData<R>,
-// }
 
 impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
     
@@ -54,13 +46,6 @@ impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
                 None => None,
             }
         }
-    }
-    
-    fn type_id() -> std::any::TypeId
-    where
-        Self: Sized + 'static,
-    {
-        std::any::TypeId::of::<Self>()
     }
 }
 

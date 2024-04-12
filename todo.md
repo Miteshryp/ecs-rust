@@ -69,12 +69,29 @@ Another additional goal of this project is to actually explore how this architec
     [] Find a design which allows us to restrict the type of system (single run, event?, etc) 
     (This should be controlled as an option in a Schedule (systems have to be in a schedule, then this schedule is responsible for determining at what frequency the systems in the schedule should run, much like bevy_ecs))
 
-[] Design and write a CommandBuffer writer for Scheduler, where a CommandBuffer is going to implement a SystemParam trait
 
+[x] Write a macro for implementing system param such that the implementor only needs to implement the initialise function, as the implementation of all other functions is common.
 
-[] Write a macro for implementing system param such that the implementor only needs to implement the initialise function, as the implementation of all other functions is common.
+[x] Design and write a CommandBuffer writer for Scheduler, where a CommandBuffer is going to implement a SystemParam trait
+
+[x] Implement Schedule flow architecture.
+    - [x] Find a solution to add support for flow execution frequency. (Initialiser get executed once, Updates get executed every frame)
+
+[] Redesign Schedule flow to an acceptable solution.
+    - We are facing a problem where we cannot have nested 
+    schedules with the API we have for schedulables (The schedulable API is suited for systems only).
+    We need to find a solution to that.
+
+[] Write a SystemQueryMut version of SystemQuery
+
 
 [x] Design Event flow (See notes.md -> Processing Events Internally)
+
+
+# Optional
+
+[] Implement a debugging system for internal types.
+
 
 
 # Research
@@ -89,17 +106,3 @@ Another additional goal of this project is to actually explore how this architec
     (This uses hashmap, but it also depends on the implementation. Bevy used a custom Sparse HashMap because the TypeId itself actually stores a u128, which I am guessing produces dispursed values when the code is compiled.)
 
     [] Do a Detailed Algorithmic analysis of structures used after making the entire system functional
-
-
-
-
-
-
-git commit -m "Changes:
-                                         - Changed the Component manager API with storage architecture
-                                         - Changed the world API and resource storage architecture
-                                         - Changed the macro definitions implemented on function objects
-                                         - Added traits on functions
-                                         - Added Schedule based traits
-                                         - Added Fuzzy Parallel Scheduling
-                                         - TODO: App has testing API field in struct. Delete them

@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::{TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
-use syn::{self, parse_macro_input, Ident};
+use syn::{self, parse_macro_input, token::Token, Ident};
 use utils::AllTuples;
 // use system::derive_resource_system;
 
@@ -12,6 +12,7 @@ mod resource;
 mod event;
 mod system;
 mod utils;
+mod system_param;
 
 /// ### ECS System derive
 ///
@@ -115,6 +116,14 @@ pub fn base_derive(input: TokenStream) -> TokenStream {
     let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
     base::derive_base(&mut ast).to_token_stream().into()
 }
+
+// @TODO: SystemParamBase
+#[proc_macro_derive(SystemParam)]
+pub fn system_param_derive(input: TokenStream) -> TokenStream {
+    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    system_param::derive_system_param(ast).into()
+}
+
 
 
 #[proc_macro]

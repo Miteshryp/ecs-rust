@@ -62,7 +62,8 @@ macro_rules! impl_system_function {
         where 
             Func: Send + Sync + 'static + FnMut($($param),*) -> () 
         {
-            fn into_schedulable(self) -> Box<dyn Schedulable> {
+            type Output = System<fn ($($param),*) -> (), Func>;
+            fn into_schedulable(self) -> Box<Self::Output> {
                 let system = System::new(self);
                 Box::new(system)
             }

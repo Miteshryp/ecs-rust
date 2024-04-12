@@ -3,9 +3,8 @@ use super::param::SystemParam;
 
 
 
+// @TODO: Document
 pub struct SystemDependencies {
-    // dependencies: Vec<Box<dyn SystemParam>>
-    // dependencies: hashbrown::HashMap<TypeId, Box<dyn SystemParam>>
     dependencies: hashbrown::HashMap<TypeId, Box<dyn Any>>
 }
 

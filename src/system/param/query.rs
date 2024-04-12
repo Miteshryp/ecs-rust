@@ -35,24 +35,9 @@ pub(crate) trait SystemQuery {
     ) -> Option<Vec<Self::EntityMutComponentHandleTuple>>;
 }
 
-/// A internal structure to enclose the mutable component reference
-/// fetched from the world.
-/// This is primarily made to fool the borrow checker into thinking
-/// that the RefMut has a static lifetime
-// pub struct QueryComponentRefMut<C: Component + 'static> {
-//     inner_boxed_component: Box<RefMut<'static, C>>,
-// }
-// impl<C: Component + 'static> Deref for QueryComponentRefMut<C> {
-//     type Target = RefMut<'static, C>;
-
-//     fn deref(&self) -> &Self::Target {
-//         self.inner_boxed_component.as_ref()
-//     }
-// }
 
 
-
-// @TODO: Change this implementation to store Arc based structs 
+// @DONE: Change this implementation to store Arc based structs 
 //          after making the corresponding changes in the component manager
 macro_rules! query_systems {
     ($($param: ident),*) => {
@@ -173,14 +158,6 @@ unsafe impl<T: SystemQuery> Sync for Query<T>{}
 
 impl<T: SystemQuery + 'static> SystemParam for Query<T> 
 {
-    // fn as_any(&self) -> &dyn Any {
-    //     self as &dyn Any
-    // }
-
-    // fn as_any_mut(&mut self) -> &mut dyn Any {
-    //     self as &mut dyn Any
-    // }
-
     fn initialise(world: *mut World) -> Option<Self> where Self: Sized {
         if let Some(extracted_tuples) = T::get_components_for_entities(world) {
             Some(Self{ 
@@ -189,12 +166,5 @@ impl<T: SystemQuery + 'static> SystemParam for Query<T>
         } else {
             None
         }
-    }
-    
-    fn type_id() -> TypeId
-    where
-        Self: Sized + 'static,
-    {
-        TypeId::of::<Self>()
     }
 }

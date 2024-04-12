@@ -1,11 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::mpsc::{channel, Receiver}};
 
 use crate::{
-    component::Component, ecs_base::ECSBase, schedule::{parallel::ParallelSchedule, IntoSchedulable}, system::{
+    component::Component, ecs_base::ECSBase, schedule::{holder::ScheduleHolder, parallel::ParallelSchedule, FlowFrequency, IntoSchedulable, Schedulable, Schedule}, system::{
         base::SystemMarker,
         System,
-    }, world::{unsafe_world::UnsafeWorldContainer, World},
-    schedule::Schedule
+    }, world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World}
 };
 
 /// ### ECS App
@@ -39,22 +38,61 @@ use crate::{
 ///     
 /// }
 /// ```
+/// 
+/// @TODO: Determing the Schedule flow architecture
 pub struct App {
     world_container: UnsafeWorldContainer,
-    test_schedule: ParallelSchedule,
-    // systems: Vec<Box<dyn BaseSystem>>,
-    // systems: Vec<dyn FnMut(&mut World, dyn SystemParam)>,
+    schedule_flows: Vec<ScheduleHolder>,
+
+    // Command buffers being received by the world
+    command_buffer: Receiver<CommandFunction>,
 }
 
 // pub trait SystemParam {}
 
 impl App {
     pub fn new() -> Self {
+        let (sx, rx) = channel::<CommandFunction>();
+
         App {
-            world_container: UnsafeWorldContainer::new(),
-            test_schedule: ParallelSchedule::new(),
+            world_container: UnsafeWorldContainer::new(sx),
+            schedule_flows: vec![],
+            command_buffer: rx
             // systems: vec![],
         }
+    }
+
+
+    /// 
+    /// ### Description
+    /// 
+    /// @TODO: Define and Document a Schedule flow properly
+    /// @TODO: Design and implement a solution to adjust flow execution
+    ///     frequency
+    /// 
+    /// Registers a Schedule flow in the App.
+    /// The order of registration determines the execution priority of the
+    /// flow being registered.
+    /// Flows that get registered first will get executed first.
+    /// 
+    /// ### Return Value:
+    /// An index representing the priority order of the registered flow
+    /// Lower the order, higher the priority.
+    pub fn register_flow(&mut self, frequency: FlowFrequency) -> usize {
+        let index = self.schedule_flows.len();
+        self.schedule_flows.push(ScheduleHolder::new(frequency));
+        index
+    }
+
+
+
+    /// 
+    /// ### Description
+    /// 
+    /// Adds a schedulable item into a specified schedule flow.
+    /// This determines the order or frequency of flow execution.
+    pub fn add_to_flow(&mut self, flow_index: usize, item: impl Schedule + 'static) {
+        self.schedule_flows[flow_index].add(Box::new(item));
     }
 
     /// Registers the component of the system and adds the system
@@ -86,40 +124,41 @@ impl App {
     //         .register_component::<<Sys as ComponentSystem>::ComponentType>();
     // }
 
-    pub fn add_system<T, Marker>(&mut self, system: T)
-    where
-        T: SystemMarker<Marker> + IntoSchedulable<Marker>,
-    {
-        self.test_schedule.add_boxed(system.into_schedulable());
-        // todo!()
-        // let s = Box::new(System::new(system));
-        // let sys: Box<dyn System> = Box::new(System::new(system));
-    }
-
     // @TODO: Add schedules functionality for each flow
 
+    // @TODO: Implement 
     // @TODO: Write documentation
-    // pub fn start(&mut self) {
-    //     for system in &mut self.systems {
-    //         system.process_start(&mut self.world_container);
-    //     }
+    pub fn start(&mut self) {
+    }
 
-    //     // SAFETY: This is the only exisiting reference to the world in
-    //     //      current scope, hence the safety rules ensure. The mutable
-    //     //      reference to the world is lost before getting the immutable
-    //     //      reference to the world again in the following line.
-    //     self.world_container.get_world_mut().set_active(true);
-    //     while self.world_container.get_world().is_active() {
-    //         self.update();
-    //     }
-    // }
+    // @TODO: Implement
+    // @TODO: Write Documentation
+    /// Calls the update process on all the systems in the App.
+    pub fn update(&mut self) {
+        self.world_container.get_world_mut().update_event_state();
 
-    // /// Calls the update process on all the systems in the App.
-    // pub fn update(&mut self) {
-    //     for system in &mut self.systems {
-    //         system.process_update(&mut self.world_container);
-    //     }
-    // }
+        for schedule in &mut self.schedule_flows {
+            schedule.run_all(&self.world_container);
+            
+            // Flushing and executing the command buffer
+            let mut result = self.command_buffer.try_recv();
+
+            while result.is_ok() {
+                let command = result.unwrap();
+
+                // Executing the command buffer
+                (command)(self.world_container.get_world_mut());
+
+                result = self.command_buffer.try_recv();
+            }
+        }
+    }
+
+    pub fn register_component<C: Component + 'static>(&mut self) {
+        self.world_container.get_world_mut().register_component::<C>();
+    }
+
+    
 
     // pub fn process_events(&mut self) {
     //     for system in &mut self.systems {

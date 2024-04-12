@@ -1,6 +1,6 @@
-use std::cell::Cell;
+use std::{cell::Cell, sync::mpsc::Sender};
 
-use super::World;
+use super::{command_type::CommandFunction, World};
 
 
 /// ### Description
@@ -34,9 +34,9 @@ pub(crate) struct UnsafeWorldContainer {
 }
 
 impl UnsafeWorldContainer {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(command_sender: Sender<CommandFunction>) -> Self {
         Self {
-            world: Cell::new(World::new()),
+            world: Cell::new(World::new(command_sender)),
         }
     }
 
