@@ -3,7 +3,7 @@
 
 - Components are structures which contain data which is contiguously allocated in memory, and all components of a single type are updated together contiguously, leading to better cache locality.
 
-- Components are updated by Systems, which are responsible for creating, managing and handling component object and event associated with them.
+- Systems are the logical unit for everything in the World and define the functionality of the App
 
 - A given entity can only have one instance of a specific type of component.
 
@@ -17,23 +17,27 @@
 
 - Since each entity can only have one instance of any given component, the component can be identified through their entity_id in the component manager.
 
-- Do we want to allow entities to be attached to other entities? Probably not.
+- Do we want to allow entities to be attached to other entities.
 
-- We may want functional systems in the design. These allow us to have some advantages
+- We have functional systems in the design. These allow us to have some advantages
     - It highly decouples logic containers across the codebase, which helps us keep code modularized
-    - It optimizes execution since now only functions which contain logic can be executed instead of each flow of each system (in the older design, even if the flow handler had no code to be executed, the derive for every system had to manually go through each dynamically dispatched system, which is highly wasteful )
 
-- Systems registered in the App currently handle a single type of component. We might want to define interactive systems as well where 2 different type of components can interact. These types of systems will generally need to be initiated once the updation cycle for the individual components has been completed.
-    - Based on this analysis, we can have 2 types of systems
-        1. Interactive systems (Take 2 or maybe more different types of components in handling functions)
-        2. Individualistic systems (Take single component in the handling functions)
+    - It optimizes execution since now only functions which contain logic can be executed instead of each flow of each system (in the older design, even if the flow handler had no code to be executed, the derive for every system had to manually go through each dynamically dispatched system, which is highly wasteful)
 
-- There may be 'n' number of such systems (depending on different applications), and hence it is a better design in my opinion to design a task scheduler which launches various systems at their appropriate times.
+
+@TODO: Rewrite this to fit the new design
+- Functional systems allow us to take `SystemParam` types into the function as parameters. Once these functions are inserted into a schedule in order to run on a World, these parameters automatically fetch the required resource locks from the world and supply them to the 
+system function through in built methods.
+
+Each type of system param may have different behavior based on what purpose it serves. 
+ex: `ResourceHandle` only supplies a single resource, whereas a `Query` or `QueryMut` component supplies multiple things. `Query` is a system param which gets us a list of entities with the required components along with the components attached to the entities.
+We can also have interactive systems which supply us an iterator over the cross product of 2 different types of component sets.
+
 
 - We must also implement mechanisms to ensure the following:
-    1. One component instance can only belong to a single entity. For this, each component needs to keep track of the entity its currently attached to. This i think will have to be the responsibility of a component manager
+    1. One component instance can only belong to a single entity. For this, each component needs to keep track of the entity its currently attached to. This I think will have to be the responsibility of a component manager
     The question is now which manager, an entity manager or a component manager?
-    The aim of this mechanism is that if a component is removed from an entity, the component can be removed from memory. The converse however does not stand true, i.e. an empty or orphan entity can exist (one with no components) [Think if we should allow empty entities]
+    The aim of this mechanism is that if a component is removed from an entity, the component can be removed from memory. But we can have an empty or orphan entity (one with no components)
 
     2. There should only exist one system to handle a single type of component or entity in the world. Hence the world class needs to make sure it only creates new systems for entities or components which are being created for the first time.
 
@@ -58,9 +62,10 @@ We create `EntityId`s using the concept of generational indexes (see reference f
 
 # Resources
 Resources are just components in the world which do not have any parent entity. These 'resources' will have to be identified by a special `ResourceId` since they do not have any parents.
+
 Since they are also independent, we do not need to enforce their storage in a contiguous memory block, and hence can be stored in hashmaps (or sparsesets in bevy) to store the Resources.
 
-Just like components can be fetched using the id of the entity they are attached to, resources will be fetched using `ComponentId`s.
+Just like components can be fetched using the id of the entity they are attached to, resources will be fetched using the Type of Resource required.
 We also need to keep checks in place to ensure that there are not more than one instance of a single resource type.
 
 
@@ -69,49 +74,46 @@ We also need to keep checks in place to ensure that there are not more than one 
 ### Design
 - A functional system is any function defined in the scope whose parameters implement the `SystemParam` type.
 
-- These `SystemParam`s are actually just extractors of state values from a world instance.
+- These `SystemParam`s are extractors responsible for extracting the state values from a world instance in a safe manner for execution on schedules.
 
 - These `extractor` parameters are going to be declared by ECS system and can be used by the user to extract state data from the assigned world to be used in a system function.
 
 ### Critical issue regarding parallel systems
 
-Currently, all the `SystemParam`s that need to be passed into a system are being initialised everytime run is called on the system, which means that all `SystemParam`s initialise every frame.
+
+##### Problem
+Currently, all the `SystemParam`s that need to be passed into a system are being initialised everytime run is called on the system, which means that all `SystemParam`s try to initialise every frame.
 
 But this could also cause trouble leading to data race conditions.
-(2 `EventReader<E>`s creating an empty vector for the same type in the `EventManager`) (This is a non-catastrophic thing, but worse things could happen)
+
 However, we cannot really create a RwLock on the world, since that would essentially force the entire design to be sequential, since the initialise function requires a `&mut World`, and that would require every system to secure a lock to the world before execution, hence essentially making the system sequential.
+
+
+##### Solution adapted
 To solve this, we have to allow multiple `&mut World`s, but we have to ensure that the internal state remains consistent throughout, meaning that if 2 systems are accessing the same resource, they should be `relatively sequential`
 
+In simple words, each resource defined in the World structure needs to be individualistically locked using RwLocks. `Extractors` will then own the locks returned by the extraction function.
 
-
-
-
-### Flow
-
-- Any function declared with compatible parameter fields is extended by the ECS system by implementing the `SystemFunction` trait for it.
-
-- This `SystemFunction` trait adds a `run()` method to the function, hence when the function is passed into a function, it can have this run method.
-
-- The `SystemFunction` uses the world pointer to create  `SystemParam` extractor fields based on the function declaration. This is done using the `init` method in the `SystemParam` trait.
-
-- `SystemParam` trait will have a init method which will take in a `&mut World` type to get full and free access into the way (We may change the type to `&World` if we do not need to call a mut function)
-
-
-
-
-- But this `SystemFunction` is not stored as a raw type (since the type of function is not really deterministic since it is determined by the parameters that the user defined, due to which we cannot directly create a vector and store it), but is rather going to be stored in a `FunctionHolder`, which will implement a `System` type, using which I can execute the system later with appropriate fields 
-(TODO: Details of this need to be worked out)
+No 2 conflicting extractors should run at the same time to cause lock owning conflict. This is the responsibility of a Scheduler. 
 
 
 
 
 
+### Functional system architecture
+
+- Any function declared with compatible parameter fields is extended by the ECS system by implementing various traits (`SystemMarker`, `SystemExtractor` and `SystemExecutor`) for it.
+
+- This `SystemExecutor` trait adds a `run()` method to the function, hence when the function is stored in a schedule, it can have this run method to run the function
+
+- The `SystemExtractor` uses the world pointer to initialise  `SystemParam` extractor fields based on the function declaration. This is done using the `initialise` method in the `SystemParam` trait.
+
+- `SystemParam` trait will have a `initialise` method which will take in a `&mut World` type to get full and free access into the world.
 
 
 
 
-
-
+- But this `SystemMarker` is not stored as a raw type (since the type of function is not really deterministic since it is determined by the parameters that the user defined, due to which we cannot directly create a vector and store it), but is rather going to be stored in a `System` (which is just a structure to hold a function and its data), which will implement a `Schedulable` type, using which I can add the system to a schedule.
 
 
 
@@ -122,9 +124,6 @@ To solve this, we have to allow multiple `&mut World`s, but we have to ensure th
 1. The Event system interface can simply be a function that can be called on the world type to push a event on the world. This event can then be processed in the next update cycle of the ECS system.
 
 2. The events can be send into the ECS system through EventReaders and EventWriters (similar to bevy).
-
-
-
 
 
 
@@ -154,14 +153,9 @@ Following is the plan to implement the Event system
 
 Some things to think about are
 
-##### Do we need all the components to handle a all types of events, or do we need to specify information in the Event schema to define the dependencies?
-**Ans.** This question is invalid now. The flaw in previous design was that the component systems and events are 2 different components, and hence they cannot be coupled without facing huge design issues. We are changing the system API to be functional, giving us high modularity, and in this system event handlers will be seperate Systems in themselves.
 
 ##### Dependencies will have a sender and a receiver, so how do we enforce the type of the sender
 **Ans.** We dont really have dependencies in the new model. Events will be created and read by handling functions through thread safe structures (EventReaders and EventWriters)
-
-##### How do we prevent the user from creating cyclic dependencies of component types?
-**Ans.** Again, no longer possible in the new system since the event handling function is a seperate system and does not have the concept of dependencies (Events launched in the event hanbd)
 
 ##### What metadata do we need to keep in the Event Schema regarding the event? 
 **Ans.** None really, we only need the type id of the Event being stored, which could just be a function in the base Event trait which could be implemented at runtime by a simple derive.
@@ -190,25 +184,42 @@ I think this is again a problem of coupling 2 unrelated components of the system
 
 
 # Schedule system
-In this ECS system, we have defined `flow`s which can be initiated by the App interface to update the state of the world. These flows are defined by different type of systems, however the number of flows are fixed (for now, we might want a way to make this arbituary). Each of the flow is initiated by a function defined in the `BaseSystem` trait and is implemented by the derive call to a type of system.
+All the systems are stored in the `App` struct, which stores these systems inside a `Schedule` type object. This schedule is primarily responsible for ensuring that each function parameter initialises in a safe manner.
 
-For scheduling, each of the flow defined in the App interface has to have a seperate scheduling graph, which defines a node as a executor function and dependency systems. This way we can parallelize execution of independent systems to achieve better performance.
+These schedules themselves are then held inside App using a `SystemHolder` struct. The system holder then sequentially runs these schedule in the order tha the `SystemHolder`s were registered in. 
+A `SystemHolder` can be registered in an App using the `register_flow` function. The holders (or flows) registered first will have a priority in execution.
 
+At the end of each flow execution, the command buffer is flushed and changes are made to the world which were initiated inside the system.
 
-
-
-
-# Independent Flows
-Currently, the different flows are hardcoded in the App interface and correspondingly in the `BaseSystem` interface as well. The base system interface then calls the appropriately named function in the trait definition to process the flow. We may want to make this process of flow definition an invariable thing by declaring each flow as a trait, and then each inteface function in the `Flow` trait would call the appropriate function in the struct implementation.
-
-The main question here is that do we really need this at all? Are we really going to have a variable number of flows or are we going to pre define it for our frame based requirement?
-Defining custom flow might help us take a step towards applying the ECS systems to projects other than games where we can define the flow of our tasks explicitly. 
-
-These flows can then be scheduled independently based on a defined criteria.
+// @TODO: Extend the document after finalising and completing the frequency feature.
 
 
 
+# Parallel Dependency Graph based Scheduling
+- The dependency graph will expose a single layer at a time, which will consist of all the nodes which have an in-degree of zero
+- What this means is that the systems in that layer do not conflict with any other system which has pending execution
+- So this means that these systems could have parallel access into the world and still ensure that no 2 resources in the world are being accessed at the same time. Hence, these systems are safe to run in parallel.
+- Hence, given that this assertion stays true, we can let the `UnsafeWorld` type be a `Send + Sync` type
 
+- This dependecy graph can also contain injected dependecies (Forcing a system to execute after another one) for 2 systems even if there is no conflict between them.
+
+## Task List
+[] Internal Type Id system for world resources
+[] Create a bloom filter based on dependencies for a system.
+[] Design a struct to store dependency graph (acyclic)
+    - An enclosing DAG struct
+    - Definition of a node
+        - system (func + dependencies)
+    - Definition of an edge
+        - Find a conflict in dependencies.
+        - Find any enforced dependencies.
+[] Construct that dependency graph for all systems in a schedule.
+[] Traverse the graph and initialise-run the systems
+    - Find the nodes with in-degree 0
+    - Execute and remove those nodes
+    - Update the graph to find new in-degrees
+
+There can only be one schedule running at any given time, since the context (essentially the graph, which ensures that parallel access to the world is safe) is local to a schedule
 
 
 

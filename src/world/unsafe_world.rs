@@ -1,4 +1,4 @@
-use std::{cell::Cell, sync::mpsc::Sender};
+use std::{cell::{Cell, UnsafeCell}, sync::mpsc::Sender};
 
 use super::{command_type::CommandFunction, World};
 
