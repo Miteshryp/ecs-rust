@@ -62,6 +62,16 @@ impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
             }
         }
     }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
+        let mut hash_set = hashbrown::HashSet::new();
+        hash_set.insert(std::any::TypeId::of::<R>());
+        hash_set
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        false
+    }
 }
 
 impl<R: Resource + 'static> Deref for ResourceHandle<R> {
@@ -105,6 +115,16 @@ impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<R> {
                 _ => panic!("Invalid result of initialisation")
             }
         }
+    }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
+        let mut hash_set = hashbrown::HashSet::new();
+        hash_set.insert(std::any::TypeId::of::<R>());
+        hash_set
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        true
     }
 }
 

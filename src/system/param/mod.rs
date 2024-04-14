@@ -74,6 +74,12 @@ pub trait SystemParam: ECSBase {
     ///     See [ResourceHandle] or [MutResourceHandle] docs for more info
     
     fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) where Self: Sized;
+
+    // Typeid of the resources whose lock it takes from the world
+    fn get_resource_access_type() -> hashbrown::HashSet<TypeId>; 
+
+    // Whether or not the param is mutable in nature
+    fn is_resource_access_mut() -> bool; 
 }
 
 

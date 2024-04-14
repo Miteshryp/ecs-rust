@@ -39,6 +39,14 @@ impl<E: Event + 'static> SystemParam for EventReader<E> {
             }
         }
     }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<TypeId> {
+        hashbrown::HashSet::new()
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        false
+    }
 }
 
 /// ## Description

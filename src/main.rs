@@ -17,7 +17,7 @@ use ecs_macros::{Component, Event, Resource};
 use resource::Resource;
 use schedule::{parallel::ParallelSchedule, FlowFrequency, IntoSchedulable, Schedule};
 use std::{any::Any, sync::mpsc::channel};
-use system::param::{CommandBufferWriter, ResourceHandle};
+use system::param::{CommandBufferWriter, MutResourceHandle, ResourceHandle};
 use world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World};
 
 // Testing code
@@ -68,6 +68,10 @@ fn test_system2(mut handle: ResourceHandle<SampleResource>) {
     println!("New System {}", handle.i);
 }
 
+fn mut_res_sys(mut handle: MutResourceHandle<SampleResource>) {
+    println!("This is the mutable system");
+}
+
 fn param_func(t: (i32, i32)) {}
 
 struct S1 {}
@@ -87,13 +91,14 @@ fn main() {
     let mut schedule = ParallelSchedule::new();
     schedule.add_boxed(test_system.into_schedulable());
     schedule.add_boxed(test_system2.into_schedulable());
+    schedule.add_boxed(mut_res_sys.into_schedulable());
 
     // Init flow
-    let init_index = app.register_flow(schedule::FlowFrequency::Once);
+    // let init_index = app.register_flow(schedule::FlowFrequency::Once);
     let update = app.register_flow(schedule::FlowFrequency::Always);
 
     // app.register_component::()
-    app.add_to_flow(init_index, once_schedule);
+    // app.add_to_flow(init_index, once_schedule);
     app.add_to_flow(update, schedule);
 
     loop {

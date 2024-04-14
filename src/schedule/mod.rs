@@ -1,7 +1,8 @@
 use std::error::Error;
 
-use crate::{system::param::InitError, world::unsafe_world::UnsafeWorldContainer};
+use crate::{system::{dependency::{SystemDependencies, SystemMetadata}, param::InitError}, world::unsafe_world::UnsafeWorldContainer};
 
+pub mod DAG;
 pub mod holder;
 pub mod parallel;
 
@@ -42,8 +43,18 @@ pub trait Schedule {
 /// This property must be maintained by all [Schedule]s
 // pub trait Schedulable: Sync {
 pub trait Schedulable: Send + Sync {
-    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) ->  (Option<InitError>, Option<()>);
+    fn initialise_dependency_metadata(&mut self) -> SystemMetadata;
+    
+    // fn check_dependency_conflict(&self, another: &SystemMetadata) -> bool;
+    // fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) ->  (Option<InitError>, Option<()>);
+    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<InitError>;
     fn run(&mut self);
+
+    // fn get_dependency_metadata(&self) -> SystemMetadata;
+    fn get_system_param_type_list(&self) -> hashbrown::HashSet<std::any::TypeId>;
+
+    // fn get_resource_access_type() -> [TypeId]; // Typeid of the locks the scheduled requires from the world
+    // fn is_resource_access_mut() -> [bool]; // Whether or not the param 
 }
 
 

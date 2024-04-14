@@ -11,6 +11,22 @@ Another additional goal of this project is to actually explore how this architec
     - There have been too many architectural changes since the last proper documentation update.
 
 
+[x] Fix internal dependency bug
+    - [] Test if this is fixed.
+
+[x] Fixing the dependency metadata fetching API (The metadata that we receive right now does not indicate the type of access - immutable/mutable, since we are simply returning a set of dependencies rn. We need to change this)
+
+[x] Decoupling metadata and runtime dependency objects from the `SystemDependency` struct.
+
+
+@TODO: Test this implementation vigorously
+[x] Find a way to insert a node in DAG. (Topological sort.)
+    - Sort based on in-degree
+    - When inserting a new node, check for dependencies from lowest to highest in-order. At every level of iteration, remove the nodes with indegree 0 and proceed to the next iteration with updated in-degrees.
+    - If the node to be inserted does not clash with a node of 0 in-order in an iteration, insert it with them and exit the insertion.
+
+
+
 
 [x] Redesign the System API to be functional
 

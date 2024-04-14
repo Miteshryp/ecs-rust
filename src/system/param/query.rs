@@ -33,8 +33,10 @@ pub(crate) trait SystemQuery {
     fn get_mut_components_for_entities(
         world: *mut World
     ) -> Option<Vec<Self::EntityMutComponentHandleTuple>>;
-}
 
+
+    fn get_component_typeid_set() -> hashbrown::HashSet<TypeId>;
+}
 
 
 macro_rules! query_systems {
@@ -44,6 +46,14 @@ macro_rules! query_systems {
         impl<$($param: Component + 'static),*> SystemQuery for (Entity, $($param),*) {
             type EntityComponentHandleTuple = (Entity, $(ComponentHandle<$param>),*);
             type EntityMutComponentHandleTuple = (Entity, $(MutComponentHandle<$param>),*);
+
+            
+            fn get_component_typeid_set() -> hashbrown::HashSet<TypeId> {
+                let mut hash_set = hashbrown::HashSet::new();
+                $(hash_set.insert(std::any::TypeId::of::<$param>());)*
+                hash_set
+            }
+
 
             fn get_query_entities(
             ) -> Vec<TypeId> {
@@ -174,6 +184,14 @@ impl<T: SystemQuery + 'static> SystemParam for Query<T>
             (None, None)
         }
     }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<TypeId> {
+        T::get_component_typeid_set()
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        false
+    }
 }
 
 #[derive(SystemParam)]
@@ -198,6 +216,14 @@ impl<T: SystemQuery + 'static> SystemParam for QueryMut<T>
         } else {
             (None, None)
         }
+    }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<TypeId> {
+        T::get_component_typeid_set()
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        true
     }
 }
 // @TODO: Implement iterators for all query types

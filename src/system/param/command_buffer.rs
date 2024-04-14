@@ -26,6 +26,14 @@ impl SystemParam for CommandBufferWriter {
             )   
         }
     }
+    
+    fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
+        hashbrown::HashSet::new()
+    }
+    
+    fn is_resource_access_mut() -> bool {
+        false
+    }
 }
 
 impl CommandBufferWriter {
