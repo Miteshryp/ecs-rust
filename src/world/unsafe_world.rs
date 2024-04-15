@@ -1,7 +1,9 @@
-use std::{cell::{Cell, UnsafeCell}, sync::mpsc::Sender};
+use std::{
+    cell::{Cell, UnsafeCell},
+    sync::mpsc::Sender,
+};
 
 use super::{command_type::CommandFunction, World};
-
 
 /// ### Description
 /// Structure for storing unsafe world reference in ECS App
@@ -38,7 +40,8 @@ unsafe impl Send for UnsafeWorldContainer {}
 unsafe impl Sync for UnsafeWorldContainer {}
 
 impl UnsafeWorldContainer {
-    pub(crate) fn new(command_sender: Sender<CommandFunction>) -> Self {
+    // pub(crate) fn new(command_sender: Sender<CommandFunction>) -> Self {
+    pub(crate) fn new(command_sender: Sender<Box<dyn FnMut(&mut World) -> ()>>) -> Self {
         Self {
             world: Cell::new(World::new(command_sender)),
         }

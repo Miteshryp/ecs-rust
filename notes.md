@@ -25,7 +25,6 @@
     - It optimizes execution since now only functions which contain logic can be executed instead of each flow of each system (in the older design, even if the flow handler had no code to be executed, the derive for every system had to manually go through each dynamically dispatched system, which is highly wasteful)
 
 
-@TODO: Rewrite this to fit the new design
 - Functional systems allow us to take `SystemParam` types into the function as parameters. Once these functions are inserted into a schedule in order to run on a World, these parameters automatically fetch the required resource locks from the world and supply them to the 
 system function through in built methods.
 
@@ -36,8 +35,6 @@ We can also have interactive systems which supply us an iterator over the cross 
 
 - We must also implement mechanisms to ensure the following:
     1. One component instance can only belong to a single entity. For this, each component needs to keep track of the entity its currently attached to. This I think will have to be the responsibility of a component manager
-    The question is now which manager, an entity manager or a component manager?
-    The aim of this mechanism is that if a component is removed from an entity, the component can be removed from memory. But we can have an empty or orphan entity (one with no components)
 
     2. There should only exist one system to handle a single type of component or entity in the world. Hence the world class needs to make sure it only creates new systems for entities or components which are being created for the first time.
 
@@ -221,7 +218,8 @@ At the end of each flow execution, the command buffer is flushed and changes are
 
 There can only be one schedule running at any given time, since the context (essentially the graph, which ensures that parallel access to the world is safe) is local to a schedule
 
-
+## Internal Dependency Conflicts
+@TODO: Write a detailed note
 
 
 

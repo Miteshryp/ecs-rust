@@ -19,14 +19,21 @@ pub(crate) struct EntityManager {
     /// Store for Entities
     entities: Vec<Entity>,
 
-    // Empty indexes
+    /// Empty indexes
     empty_index: Vec<usize>,
     
 }
 
 impl EntityManager {
-    fn generate_entity_id(&mut self) -> Entity {
 
+
+    #[doc(hidden)]
+    /// ### Description
+    /// 
+    /// Generates and [`entity id`](crate::entity::Entity)
+    /// based on the previous generation of an empty index.
+    /// 
+    fn generate_entity_id(&mut self) -> Entity {
         // If we have a whole, we fill it, else we create a new position
         if !self.empty_index.is_empty() {
             let index = self.empty_index.pop().unwrap();
@@ -55,6 +62,8 @@ impl EntityManager {
 
 
     /// 
+    /// ### Description
+    /// 
     /// Returns the vector of all active entities living 
     /// in the world entity manager.
     /// 
@@ -67,9 +76,11 @@ impl EntityManager {
     }
 
     ///
-    /// Creates an Entity and gives it's EntityId
+    /// ### Description
+    /// 
+    /// Creates an Entity and gives it's [`EntityId`][crate::entity::Entity]
     ///
-    /// Returns an EntityId, which must be used to perform
+    /// Returns an [`EntityId`][crate::entity::Entity], which must be used to perform
     /// all further operations on the entity
     ///
     pub fn create_entity(&mut self) -> Entity {
@@ -86,15 +97,21 @@ impl EntityManager {
     }
 
     ///
+    /// ### Description
+    /// 
     /// Removes the entity and all components attached to it
     ///
-    /// The [`entity_id`](EntityId) passed in the parameter is
-    /// invalidated and any future operations on the entity
-    /// will result in a panic
+    /// The [`entity_id`](crate::entity::Entity) passed in the parameter is
+    /// invalidated and any future operations on the entity will result in 
+    /// no operation being performed, and an error log will be generated
     ///
     pub fn dispose_entity_id(&mut self, entity_id: Entity) {
-        assert!(self.entities[entity_id.index as usize].generation == entity_id.generation, 
-            "Failed to dispose entity id {:?}: ID does not exist in the system anymore. It might have been deleted previously", entity_id); 
+        if self.entities[entity_id.index as usize].generation == entity_id.generation {
+            let err_str = format!("Failed to dispose entity id {:?}: ID does not exist in the system anymore. It might have been deleted previously", entity_id);
+            log::error!("{err_str}");
+            return;
+        }
+
         self.empty_index.push(entity_id.index as usize);
     }
 }

@@ -15,7 +15,7 @@ use self::{
     dependency::{SystemDependencies, SystemMetadata},
     param::{InitError, ResourceHandle},
 };
-use crate::{schedule::Schedulable, world::unsafe_world::UnsafeWorldContainer};
+use crate::{schedule::schedulable::Schedulable, world::unsafe_world::UnsafeWorldContainer};
 
 /// ### Description
 ///
@@ -29,16 +29,10 @@ where
 {
     pub(crate) func: Func,
     pub(crate) dependencies: SystemDependencies,
-
-    // @TODO: Think about metadata decoupling as follows
-    // pub(crate) dependency_metadata: SystemMetadata,
     pub(crate) _marker: PhantomData<Marker>,
 }
 
-/// @SAFETY:
-/// A system contains dependencies, which due to design
-/// contains RwLockGuards to world resources.
-/// These RwLockGuards have
+/// @TODO: Write @SAFETY
 unsafe impl<Marker, Func> Sync for System<Marker, Func>
 where
     Marker: Send + Sync,
@@ -52,14 +46,6 @@ where
 {
 }
 
-// @ISSUE: This is gonna result in an internal conflict, which is going to
-// hang the system execution (Since it can't resolve it in any iteration)
-// @TODO: Find a solution to this issue
-//
-// fn test(ComponentMutHandle<C1>, Query<C1, C2>) {
-//
-// }
-
 ///
 /// @NOTE: Schedulable is only ever going to be implemented
 ///         for a system as of now (Apr 14, 2024). So while
@@ -70,51 +56,50 @@ where
     Marker: Send + Sync,
     Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
 {
+    /// For description, see [Schedulable::initialise_dependency_metadata]
     fn initialise_dependency_metadata(&mut self) -> SystemMetadata {
         let mut new_metadata = SystemMetadata::new();
         self.func.extract_dependency_metadata(&mut new_metadata);
         new_metadata
-        // self.func.extract_dependency_metadata(&mut self.dependency_metadata);
     }
 
+
+    /// For description, see [Schedulable::initialise_dependencies]
     fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<InitError> {
         self.func
             .extract_dependencies(world, &mut self.dependencies)
     }
 
-    fn run(&mut self) {
-        // let deps = std::mem::replace(&mut self.dependencies, SystemDependencies::new());
-        // self.func.run(deps);
 
-        // @CHECK: dependencies should reset every frame
+    /// For description, see [Schedulable::run]
+    fn run(&mut self) {
+
+        // Running the system.
+        //
+        // This clears out the acquired locks stored in the
+        // [`dependencies`](crate::system::System::dependencies)
         self.func.run(&mut self.dependencies);
     }
-
-    fn get_system_param_type_list(&self) -> hashbrown::HashSet<std::any::TypeId> {
-        self.dependencies.get_system_param_dependencies()
-    }
-
-    // @DONE: Correct this. See TODO in SystemDependency::get_world_resource_dependencies
-    // @TODO: Test this implementation.
-    // fn check_dependency_conflict(&self, another: &SystemMetadata) -> bool {
-    //     self.dependency_metadata.is_resource_clashing(&another)
-    // }
-    
-    // fn get_dependency_metadata(&self) -> SystemMetadata {
-    //     self.dependency_metadata.clone()
-    // }
 }
+
+
 
 impl<Marker, Func> System<Marker, Func>
 where
     Marker: Send + Sync,
     Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
 {
+
+    /// 
+    /// ### Description 
+    /// 
+    /// Creates a new System wrapper object responsible
+    /// for storing a system function along with data regarding
+    /// its dependencies
     pub fn new(system: Func) -> Self {
         Self {
             func: system,
             dependencies: SystemDependencies::new(),
-            // dependency_metadata: SystemMetadata::new(),
             _marker: std::marker::PhantomData,
         }
     }

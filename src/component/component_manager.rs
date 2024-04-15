@@ -51,16 +51,7 @@ pub(crate) struct ComponentManager<Comp>
 where
     Comp: Component,
 {
-    /// Contiguous array of components which enables us to do faster
-    /// update operations due to better cache locality.
-    ///
-    /// RefCell dynamically checks the mutable references to a component,
-    /// hence we cannot have illegal reference to a component
-    ///
-    /// @TODO: We need to remove RefCell as they are not safe across
-    /// thread boundaries
-    ///
-    // components: Vec<RefCell<Comp>>,
+    /// @TODO: @Document the member variable
     components: Vec<Arc<RwLock<Comp>>>,
 
     /// Stores the [entity ids](Entity) of the [`components`](ComponentManager::components)
@@ -99,12 +90,16 @@ where
     fn remove_component_from_entity(&mut self, entity_id: Entity) {
         // Entity must have a component of type [`Comp`] attached for removal to be possible
         // @TODO: Remove assertion and add result based code
-        assert!(
-            self.entity_component_map.contains_key(&entity_id),
-            "Entity [{:?}] does not have a component of type \'{}\'",
-            entity_id,
-            Comp::get_name()
-        );
+
+        if !self.entity_component_map.contains_key(&entity_id) {
+            let err_str = format!(
+                "Entity [{:?}] does not have a component of type \'{}\'",
+                entity_id,
+                Comp::get_name()
+            );
+            log::error!("{err_str}");
+            return;
+        }
 
         let components_length = self.components.len();
         let component_index = self.entity_component_map.get(&entity_id).unwrap();

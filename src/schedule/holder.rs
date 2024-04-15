@@ -1,12 +1,14 @@
 use crate::world::unsafe_world::UnsafeWorldContainer;
 
-use super::{Schedulable, Schedule, FlowFrequency};
+use super::{FlowFrequency, Schedule, schedulable::{Schedulable}};
 
-/// @POSSIBLE SOLUTION: Maybe to compensate the Schedule holding Schedule issue,
+/// @SOLVED: Maybe to compensate the Schedule holding Schedule issue,
 /// we can implement a parent trait to Schedule which can be implemented
 /// by schedule holder, and then through type checks inside a schedule,
 /// if we find a schedule holder, we extract schedules from them and execute them
 /// in parallel with ours.
+/// 
+/// SOLVED Using SystemHolders
 ///
 pub struct ScheduleHolder {
     executions: Vec<Box<dyn Schedule>>,
@@ -38,19 +40,3 @@ impl ScheduleHolder {
 
     }
 }
-
-// impl Schedule for ScheduleHolder {
-//     fn run_schedule(&mut self, world: &UnsafeWorldContainer) {
-//         for schedule in &mut self.executions {
-//             schedule.run_schedule(world);
-//         }
-//     }
-
-//     fn add_boxed(&mut self, item: Box<dyn Schedulable>) {
-//         self.executions.push(item);
-//     }
-
-//     fn set_schedule_frequency(&mut self, freq: super::ScheduleFrequency) {
-//         todo!()
-//     }
-// }

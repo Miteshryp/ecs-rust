@@ -1,13 +1,14 @@
 pub mod component_manager;
 pub mod handles;
 
-use std::any::{Any, TypeId};
 
-use crate::{
-    entity::{entity_manager::EntityManager, Entity},
-    world::World,
-};
-
+/// ### Description
+/// 
+/// The trait declaration which detects [Component] types
+/// across the ECS system
+/// 
+/// This trait must be implemented for all user-defined 
+/// components using the [ecs_macros::Component] derive macro
 pub trait Component {
     fn get_name() -> String
     where

@@ -67,7 +67,9 @@ pub struct World {
     // Event processing unit
     event_manager: EventManager,
 
-    command_sender: Sender<CommandFunction>,
+    // command_sender: Sender<CommandFunction>,
+    command_sender: Sender<Box<dyn FnMut(&mut World) -> ()>>,
+
     // command_receiver: Receiver<CommandFunction>,
     /// Resources present in the world
     resources: HashMap<ResourceId, Arc<RwLock<Box<dyn Resource>>>>,
@@ -144,7 +146,8 @@ impl World {
 }
 
 impl World {
-    pub fn new(command_sender: Sender<CommandFunction>) -> Self {
+    // pub fn new(command_sender: Sender<CommandFunction>) -> Self {
+    pub fn new(command_sender: Sender<Box<dyn FnMut(&mut World) -> ()>>) -> Self {
         let (tx, rx) = channel::<CommandFunction>();
         Self {
             active: false,
@@ -205,11 +208,11 @@ impl World {
 
     /// Adding resource to the world
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
-        // @TODO: Remove assertion and write option based logic
-        assert!(!self.resources.contains_key(&R::type_id()));
-
-        // self.resources.insert(R::get_type(), Box::new(resource));
-        // self.resources.insert(R::get_type(), RwLock::new(Box::new(resource)));
+        if self.resources.contains_key(&R::type_id()) {
+            let err_str = format!("Duplicate Resource addition found: Aborting addition for Type: {:?}", R::type_id());
+            log::error!("{err_str}");
+            return;
+        }
 
         self.resources
             .insert(R::type_id(), Arc::new(RwLock::new(Box::new(resource))));
@@ -230,11 +233,11 @@ impl World {
         entity_id: Entity,
         component: C,
     ) {
-        assert!(
-            self.check_component_registered::<C>(),
-            "Component not registered for use: {}",
-            C::get_name()
-        );
+        if !self.check_component_registered::<C>() {
+            let err_str = format!("Component not registered for use: {}", C::get_name());
+            log::error!("{err_str}");
+            return;
+        }
 
         let system = self.get_manager_mut::<C>();
         system.add_component_to_entity(entity_id, component);
@@ -254,11 +257,12 @@ impl World {
         &mut self,
         entity_id: Entity,
     ) {
-        assert!(
-            !self.has_component::<C>(entity_id),
-            "Component Removal failed: Component does not exist in the entity with id {:?}",
-            entity_id
-        );
+        if !self.has_component::<C>(entity_id) {
+            let err_str = format!("Component Removal failed: Component does not exist in the entity with id {:?}", entity_id);
+            log::error!("{err_str}");
+            return;
+        }
+
         let system = self.get_manager_mut::<C>();
         system.remove_component_from_entity(entity_id);
     }
@@ -275,12 +279,11 @@ impl World {
     /// in the system will result in a panic
     ///
     pub fn has_component<C: Component + Sized + 'static>(&self, entity_id: Entity) -> bool {
-        // @TODO: Remove assertion and add Option or Result here
-        assert!(
-            self.check_component_registered::<C>(),
-            "Component not registered for use {}",
-            C::get_name()
-        );
+        if !self.check_component_registered::<C>() {
+            let err_str = format!("Component not registered for use {}", C::get_name());
+            log::error!("{err_str}");
+            return false;
+        }
 
         // Getting the appropriate system for the component
         let system = self.get_manager::<C>();
@@ -374,10 +377,6 @@ impl World {
     /// Returns an Owned Write Guard to a resource in the world
     ///
     // @TODO: Change function name to be more suitable
-    // pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
-    //     &mut self,
-    // ) -> Option<OwnedRwLockWriteGuard<Box<dyn Resource>>> {
-
     pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
         &mut self,
     ) -> (
@@ -391,25 +390,16 @@ impl World {
             },
             None => (ResourceFetchResult::DoesNotExist, None),
         }
-
-        // match self
-        //     .resources
-        //     .get(&R::type_id())
-        //     .unwrap()
-        //     .clone()
-        //     .try_write_owned()
-        // {
-        //     Ok(x) => Some(x),
-        //     Err(_) => None,
-        // }
     }
 
-    // pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
-    //     &self,
-    // ) -> Option<OwnedRwLockReadGuard<Box<dyn Resource>>> {
+
+    // @TODO: Document
     pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
         &self,
-    ) -> (ResourceFetchResult, Option<OwnedRwLockReadGuard<Box<dyn Resource>>>) {
+    ) -> (
+        ResourceFetchResult,
+        Option<OwnedRwLockReadGuard<Box<dyn Resource>>>,
+    ) {
         match self.resources.get(&R::type_id()) {
             Some(x) => match x.clone().try_read_owned() {
                 Ok(lock) => (ResourceFetchResult::Success, Some(lock)),
@@ -417,24 +407,13 @@ impl World {
             },
             None => (ResourceFetchResult::DoesNotExist, None),
         }
-
-        // match self
-        //     .resources
-        //     .get(&R::type_id())
-        //     .unwrap()
-        //     .clone()
-        //     .try_read_owned()
-        // {
-        //     Ok(x) => Some(x),
-        //     Err(_) => None,
-        // }
     }
 
     ///
     /// ### Description
     ///
-    ///  Returns an array of [`EntityIds`](Entity) which have the
-    /// components with the types specified in the input parameter
+    /// Returns an array of [`EntityIds`](Entity) which have the
+    /// components specified in the input query parameter type
     ///
     /// ### Parmameters
     /// - `Query` [SystemQuery] type defining the components to be fetched
@@ -448,7 +427,7 @@ impl World {
         let mut active_entities = self.entity_manager.get_active_entities();
 
         // Array of TypeId of Components that the query demands
-        let component_ids = QueryType::get_query_entities();
+        let component_ids = QueryType::get_query_component_ids();
 
         // Finding appropriate component manager for each type
         for cid in component_ids {
@@ -478,7 +457,7 @@ impl World {
         active_entities
     }
 
-    pub(crate) fn get_command_writer(&self) -> Sender<CommandFunction> {
+    pub(crate) fn get_command_writer(&self) -> Sender<Box<dyn FnMut(&mut World) -> ()>> {
         self.command_sender.clone()
     }
 }

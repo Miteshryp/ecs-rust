@@ -62,7 +62,6 @@ pub fn base_derive(input: TokenStream) -> TokenStream {
     base::derive_base(&mut ast).to_token_stream().into()
 }
 
-// @TODO: SystemParamBase
 #[proc_macro_derive(SystemParam)]
 pub fn system_param_derive(input: TokenStream) -> TokenStream {
     let mut ast: syn::DeriveInput = syn::parse(input).unwrap();

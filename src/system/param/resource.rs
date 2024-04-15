@@ -20,13 +20,11 @@ pub enum ResourceFetchResult {
 ///
 /// ### Description
 ///
-/// A Resource Handle to access unique resources created in the world
+/// A Resource Handle to access unique resources created in the world.
+/// This structure provides a resource access to users in the system function
+/// by storing an owned guard to a particular resource in the system.
 ///     
-/// @NOTE: We get a mutable pointer to the world as a input to the initialise method
-///         This is to facilitate RwLockGuard acquisition from the world for Resource
-///         handles. &mut World makes rust believe the returned guard does not have
-///         lifetime which lives long enough, so we fool the borrow checker this way
-///         to make it think that the reference is static.
+
 
 #[derive(SystemParam)]
 pub struct ResourceHandle<R: Resource + 'static>

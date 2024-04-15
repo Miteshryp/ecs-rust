@@ -14,18 +14,15 @@ use app::App;
 use component::Component;
 use ecs_base::ECSBase;
 use ecs_macros::{Component, Event, Resource};
+use entity::Entity;
 use resource::Resource;
-use schedule::{parallel::ParallelSchedule, FlowFrequency, IntoSchedulable, Schedule};
+use schedule::{parallel::ParallelSchedule, schedulable::IntoSchedulable, FlowFrequency, Schedule};
 use std::{any::Any, sync::mpsc::channel};
-use system::param::{CommandBufferWriter, MutResourceHandle, ResourceHandle};
+use system::param::{CommandBufferWriter, EventReader, EventWriter, MutResourceHandle, QueryMut, ResourceHandle};
 use world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World};
 
 // Testing code
 
-#[derive(Component)]
-pub struct TestComponent {
-    pub i: u32,
-}
 
 #[derive(Component)]
 struct NewComponent {
@@ -37,71 +34,103 @@ struct SampleEvent {
     i: i32,
 }
 
-trait SampleTrait {
-    fn print(&self);
-}
 
 #[derive(Resource)]
 struct SampleResource {
     i: i32,
 }
 
-impl SampleTrait for SampleResource {
-    fn print(&self) {
-        println!("{}", self.i);
-    }
-}
 
 fn init(writer: CommandBufferWriter) {
     println!("Here");
     writer.add_command(|world: &mut World| {
-        let s = SampleResource {i:45};
+        let s = SampleResource { i: 45 };
         world.add_resource(s);
-    })
+    });
+    let some_value = 34;
+
+    writer.add_command(move |world: &mut World| {
+        let id = world.create_entity();
+        world.add_component_to_entity(
+            id,
+            NewComponent {
+                t: some_value as f32,
+            },
+        );
+    });
 }
+
+fn query_system(mut comp_query: QueryMut<(Entity, NewComponent)>) {}
 
 fn test_system(mut handle: ResourceHandle<SampleResource>) {
-    println!("Sys A {}", handle.i);
+    // println!("Sys A {}", handle.i);
 }
 
-fn test_system2(mut handle: ResourceHandle<SampleResource>) {
-    println!("New System {}", handle.i);
+fn test_system2(mut handle: ResourceHandle<SampleResource>, world_writer: CommandBufferWriter) {
+    // println!("New System {}", handle.i);
+
+    if handle.i > 150 {
+        world_writer.add_command(|world: &mut World| {
+            world.set_active(false);
+        });
+    }
 }
 
-fn mut_res_sys(mut handle: MutResourceHandle<SampleResource>) {
-    println!("This is the mutable system");
+fn mut_res_sys(mut handle: MutResourceHandle<SampleResource>, writer: EventWriter) {
+    // println!("This is the mutable system");
+    handle.i += 1;
+
+    if handle.i % 50 == 0 {
+        println!("Sent event");
+        writer.send_event(SampleEvent {i: handle.i / 50});
+    }
 }
 
-fn param_func(t: (i32, i32)) {}
+fn event_reader(reader: EventReader<SampleEvent>) {
+    for event in reader.read_events() {
+        println!("Event Received: {}", event.i);
+    }
+}
+
+fn ordered_to_system2(mut handle: ResourceHandle<SampleResource>) {
+    // println!("Ordered system");
+}
 
 struct S1 {}
 
 struct S2 {}
 
-impl SampleTrait for (S1, S2) {
-    fn print(&self) {}
-}
 
 fn main() {
     let mut app = App::new();
+
+    app.register_component::<NewComponent>();
 
     let mut once_schedule = ParallelSchedule::new();
     once_schedule.add_boxed(init.into_schedulable());
 
     let mut schedule = ParallelSchedule::new();
     schedule.add_boxed(test_system.into_schedulable());
-    schedule.add_boxed(test_system2.into_schedulable());
+    schedule.add_boxed(event_reader.into_schedulable());
+    // schedule.add_boxed(test_system2.into_schedulable());
+
+    schedule.add_ordered(test_system2.before(ordered_to_system2));
     schedule.add_boxed(mut_res_sys.into_schedulable());
+    // schedule.add_boxed(test_invalid_system.into_schedulable());
+
+    // test_system2 -> test_system
+    // schdeule.add_multiple(test_system.after(test_system2));
 
     // Init flow
-    // let init_index = app.register_flow(schedule::FlowFrequency::Once);
+    let init_index = app.register_flow(schedule::FlowFrequency::Once);
     let update = app.register_flow(schedule::FlowFrequency::Always);
 
     // app.register_component::()
-    // app.add_to_flow(init_index, once_schedule);
+    app.add_to_flow(init_index, once_schedule);
     app.add_to_flow(update, schedule);
 
-    loop {
-        app.update();
-    }
+    app.start();
+    // loop {
+    //     // app.update();
+    // }
 }
