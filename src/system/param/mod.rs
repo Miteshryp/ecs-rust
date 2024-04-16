@@ -88,7 +88,7 @@ pub trait SystemParam: ECSBase {
     ///         handles. &mut World makes rust believe the returned guard does not have
     ///         lifetime which lives long enough, so we fool the borrow checker this way
     ///         to make it think that the reference is static.
-    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) where Self: Sized;
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>) where Self: Sized;
 
     ///
     /// ### Description

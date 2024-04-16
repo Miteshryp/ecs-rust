@@ -1,6 +1,6 @@
 use crate::{
     system::{dependency::SystemMetadata, param::InitError},
-    world::unsafe_world::UnsafeWorldContainer,
+    world::{unsafe_world::UnsafeWorldContainer, World},
 };
 
 /// @SAFETY:
@@ -9,7 +9,7 @@ use crate::{
 /// across thread boundaries.
 /// This property must be maintained by all [Schedule]s
 // pub trait Schedulable: Sync {
-pub trait Schedulable: Send + Sync {
+pub trait Schedulable: Send {
 
     /// Function used by a schedule to get metadata about the 
     /// world based resources required by the system
@@ -17,7 +17,7 @@ pub trait Schedulable: Send + Sync {
 
     /// Attempts to initialise the system by acquiring locks on
     /// resources required for system execution
-    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<InitError>;
+    fn initialise_dependencies(&mut self, world: &World) -> Option<InitError>;
 
     /// Executes the system based on the resource locks acquired
     /// **NOTE:** This should always be executed after the 

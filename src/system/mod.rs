@@ -4,7 +4,7 @@ pub mod param;
 
 use std::marker::PhantomData;
 
-use crate::resource::Resource;
+use crate::{resource::Resource, world::World};
 use crate::system::param::SystemParam;
 use crate::ECSBase;
 use ecs_macros::Resource;
@@ -24,7 +24,7 @@ use crate::{schedule::schedulable::Schedulable, world::unsafe_world::UnsafeWorld
 /// for execution
 pub struct System<Marker, Func>
 where
-    Marker: Send + Sync,
+    Marker: Send,
     Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
 {
     pub(crate) func: Func,
@@ -32,16 +32,18 @@ where
     pub(crate) _marker: PhantomData<Marker>,
 }
 
-/// @TODO: Write @SAFETY
-unsafe impl<Marker, Func> Sync for System<Marker, Func>
-where
-    Marker: Send + Sync,
-    Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
-{
-}
+///
+/// @SAFETY: A system is can be executed in parallel
+///     by creating a &mut reference of a system in the thread,
+///     which ensures that a system can only execute on one
+///     of the running threads.
+/// 
+///     Since the system can now only be initialised from a
+///     single thread in the program, we can safely say that the 
+///     system is safe to be send across the thread boundary
 unsafe impl<Marker, Func> Send for System<Marker, Func>
 where
-    Marker: Send + Sync,
+    Marker: Send,
     Func: SystemExecutor<Marker> + SystemExtractor<Marker> + SystemMarker<Marker> + Send + Sync,
 {
 }
@@ -65,7 +67,7 @@ where
 
 
     /// For description, see [Schedulable::initialise_dependencies]
-    fn initialise_dependencies(&mut self, world: &UnsafeWorldContainer) -> Option<InitError> {
+    fn initialise_dependencies(&mut self, world: &World) -> Option<InitError> {
         self.func
             .extract_dependencies(world, &mut self.dependencies)
     }

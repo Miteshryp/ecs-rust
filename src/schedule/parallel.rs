@@ -12,7 +12,7 @@ use crate::{
     world::unsafe_world::UnsafeWorldContainer,
 };
 
-use super::{FlowFrequency, Schedulable, Schedule, DAG::DependencyGraph};
+use super::{ScheduleHolderFrequency, Schedulable, Schedule, DAG::DependencyGraph};
 
 pub struct ParallelSchedule {
     /// A structure storing the systems inserted into a schedule

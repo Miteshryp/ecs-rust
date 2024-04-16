@@ -26,10 +26,6 @@ impl GraphNode {
     }
 }
 
-// @TODO: Define @SAFETY
-// unsafe impl Send for GraphNode {}
-// unsafe impl Sync for GraphNode {}
-
 pub(crate) struct DependencyGraph {
     nodes: Vec<GraphNode>,
     indegrees: Vec<usize>,
@@ -225,8 +221,10 @@ impl DependencyGraph {
                 top_nodes_vec.push(&mut first[first.len() - 1])
             }
 
+            let world_ref = world.get_world();
+
             top_nodes_vec.into_par_iter().for_each(|item| {
-                if let Some(res) = item.system.initialise_dependencies(world) {
+                if let Some(res) = item.system.initialise_dependencies(world_ref) {
                     // Initialisation failed. Resource does not exist. Do not run the system
                     return;
                 }

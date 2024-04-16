@@ -16,13 +16,13 @@ use crate::{
 use self::schedulable::{DependentSystems, Schedulable};
 
 
-pub enum FlowFrequency {
+pub enum ScheduleHolderFrequency {
     Once = 0,
     Always = 1,
     Alternate = 2, // runs every 2 executions
 }
 
-impl Clone for FlowFrequency {
+impl Clone for ScheduleHolderFrequency {
     fn clone(&self) -> Self {
         match self {
             Self::Once => Self::Once,
@@ -31,7 +31,7 @@ impl Clone for FlowFrequency {
         }
     }
 }
-impl Copy for FlowFrequency {}
+impl Copy for ScheduleHolderFrequency {}
 
 pub trait Schedule {
     fn run_schedule(&mut self, world: &UnsafeWorldContainer);

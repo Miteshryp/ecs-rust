@@ -9,7 +9,7 @@ use std::{fmt::Debug, hash::Hash};
 /// a series of bits. (This is the explanation given in the bevy source code,
 /// but they have a function to bits for the entity id)
 /// 
-/// @TODO: Document generational id
+/// For more on generational id, see the reference in notes.md
 #[repr(C, align(8))]
 #[derive(Debug)]
 pub struct Entity {

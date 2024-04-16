@@ -95,11 +95,6 @@ impl World {
         self.component_managers.contains_key(&TypeId::of::<C>())
     }
 
-    // @DONE: Think about the panic behavior, is it right?
-    //          We're shifting to Options slowly
-    // @TODO: Audit all functions to follow an Option based
-    //          response process for undefined behavior.
-
     ///
     /// ### Description (Internal):
     ///
@@ -174,9 +169,9 @@ impl World {
     /// attached to it.
     pub fn remove_entity(&mut self, entity_id: Entity) {
         // Dispose all components attached to the entity
-        // @TODO: Check whether the entity is actually valid before launching remove_component_from_entity functions
 
         for (_, system) in &mut self.component_managers {
+            // Only remove the component if it is attached to the entity
             if system.has_component(entity_id) {
                 system.remove_component_from_entity(entity_id);
             }
@@ -327,21 +322,44 @@ impl World {
     }
 }
 
+/// @SAFETY:
+/// The [`world`](crate::World)s internal API is accessible 
+/// through a immutable reference, which allows the internal
+/// system to get access into the world and modify the resource
+/// through a locking system
+/// 
+/// Also, world is ensured to be access by multiple thread in a 
+/// non-conflicting manner by the [`scheduler`](crate::schedule::Scheduler)
+/// 
+/// Hence, any reference of world across different threads will
+/// never conflict, hence World can have the Sync trait
+unsafe impl Sync for World {}
+
 impl World {
     // @SOLVED: If parallel systems try to create an event reader for the same event type
     // which hasn't been used previously, it may cause trouble to create the vector for the
     // event type
-    pub(crate) fn get_event_reader<E: Event + 'static>(&mut self) -> Option<EventReader<E>> {
+    pub(crate) fn get_event_reader<E: Event + 'static>(&self) -> Option<EventReader<E>> {
         self.event_manager.get_reader()
     }
 
-    pub(crate) fn get_event_writer(&mut self) -> EventWriter {
+    pub(crate) fn get_event_writer(&self) -> EventWriter {
         self.event_manager.get_writer()
     }
 
-    // @TODO: Document
+    /// 
+    /// ### Description
+    /// 
+    /// Internal API function to get mutable access to the lock 
+    /// on a component of type [`C`] attached to the [`entity_id`](Entity)
+    /// 
+    /// ### Return value:
+    /// This function returns an owned Rw lock write guard, 
+    /// which ensures the validity of data by storing an 
+    /// [Arc] to the data
+    /// 
     pub(crate) fn get_component_ref_mut_lock<C: Component + 'static>(
-        &mut self,
+        &self,
         entity_id: Entity,
     ) -> Option<OwnedRwLockWriteGuard<C>> {
         assert!(
@@ -350,15 +368,27 @@ impl World {
             C::get_name()
         );
 
-        let system = self.get_manager_mut::<C>();
+        let system = self.get_manager::<C>();
         match system.borrow_component_mut(entity_id) {
             Some(component_ref) => Some(component_ref),
             None => None,
         }
     }
 
+
+    /// 
+    /// ### Description
+    /// 
+    /// Internal API function to get immutable access to the lock 
+    /// on a component of type [`C`] attached to the [`entity_id`](Entity)
+    /// 
+    /// ### Return value:
+    /// This function returns an owned Rw lock write guard, 
+    /// which ensures the validity of data by storing an 
+    /// [Arc] to the data
+    /// 
     pub(crate) fn get_component_ref_lock<C: Component + 'static>(
-        &mut self,
+        &self,
         entity_id: Entity,
     ) -> Option<OwnedRwLockReadGuard<C>> {
         assert!(
@@ -367,18 +397,25 @@ impl World {
             C::get_name()
         );
 
-        let system = self.get_manager_mut::<C>();
+        let system = self.get_manager::<C>();
         match system.borrow_component(entity_id) {
             Some(component_ref) => Some(component_ref),
             None => None,
         }
     }
 
-    /// Returns an Owned Write Guard to a resource in the world
     ///
-    // @TODO: Change function name to be more suitable
-    pub(crate) fn get_resource_mut<R: Resource + Sized + 'static>(
-        &mut self,
+    /// ### Description
+    /// 
+    /// Returns an Owned Write Guard to a resource in the world
+    /// as an [`Option`]
+    /// 
+    /// If the lock acquisition fails (which happens if the resource 
+    /// is occupied or does not exist), then the option is returned 
+    /// with a [None] value
+    ///
+    pub(crate) fn get_resource_mut_lock<R: Resource + Sized + 'static>(
+        &self,
     ) -> (
         ResourceFetchResult,
         Option<OwnedRwLockWriteGuard<Box<dyn Resource>>>,
@@ -393,8 +430,18 @@ impl World {
     }
 
 
-    // @TODO: Document
-    pub(crate) fn get_resource_ref<R: Resource + Sized + 'static>(
+    ///
+    /// ### Description
+    /// 
+    /// Returns an Owned Read Guard to a resource in the world
+    /// as an [`Option`], which allows immutable access to the 
+    /// specified resource
+    /// 
+    /// If the lock acquisition fails (which happens if the resource 
+    /// is occupied or does not exist), then the option is returned 
+    /// with a [None] value
+    ///
+    pub(crate) fn get_resource_ref_lock<R: Resource + Sized + 'static>(
         &self,
     ) -> (
         ResourceFetchResult,
@@ -458,15 +505,31 @@ impl World {
     }
 
 
-    // @TODO: Document
-    pub(crate) fn get_all_component_locks<C: Component + 'static>(&mut self) -> Option<Vec<OwnedRwLockReadGuard<C>>> {
+    /// 
+    /// ### Description
+    /// 
+    /// Internal API methods used by systems to get all read only
+    /// component locks from the manager inside of a [Option<Vector>]
+    /// 
+    /// If any one of the lock acquisition fails, the [`Option`] is 
+    /// returned as a [None] value
+    /// 
+    pub(crate) fn get_all_component_locks<C: Component + 'static>(&self) -> Option<Vec<OwnedRwLockReadGuard<C>>> {
         self.get_manager::<C>().borrow_all_components()
     }
 
 
-    // @TODO: Document
-    pub(crate) fn get_all_component_locks_mut<C: Component + 'static>(&mut self) -> Option<Vec<OwnedRwLockWriteGuard<C>>> {
-        self.get_manager_mut::<C>().borrow_all_components_mut()
+    /// 
+    /// ### Description
+    /// 
+    /// Internal API methods used by systems to get all write access
+    /// component locks from the manager inside of a [Option<Vector>]
+    /// 
+    /// If any one of the lock acquisition fails, the [`Option`] is 
+    /// returned as a [None] value
+    /// 
+    pub(crate) fn get_all_component_locks_mut<C: Component + 'static>(&self) -> Option<Vec<OwnedRwLockWriteGuard<C>>> {
+        self.get_manager::<C>().borrow_all_components_mut()
     }
 
 

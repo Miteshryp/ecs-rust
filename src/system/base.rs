@@ -2,7 +2,7 @@ use super::{
     dependency::{SystemDependencies, SystemMetadata},
     param::{InitError, SystemParam},
 };
-use crate::world::unsafe_world::UnsafeWorldContainer;
+use crate::world::{unsafe_world::UnsafeWorldContainer, World};
 use ecs_macros::implement_tuples;
 use log;
 
@@ -25,7 +25,7 @@ pub trait SystemExtractor<MarkerFunc> {
     fn extract_dependency_metadata(&mut self, deps: &mut SystemMetadata);
     fn extract_dependencies(
         &mut self,
-        world: &UnsafeWorldContainer,
+        world: &World,
         deps: &mut SystemDependencies,
     ) -> Option<InitError>;
 }
@@ -104,7 +104,7 @@ macro_rules! impl_system_function {
             }
 
             // See description in [SystemExtractor]
-            fn extract_dependencies(&mut self, world: &UnsafeWorldContainer, dependencies: &mut SystemDependencies) -> Option<InitError> {
+            fn extract_dependencies(&mut self, world: &World, dependencies: &mut SystemDependencies) -> Option<InitError> {
                 // Create extractor instances for supplied extractor types.
                 $(
 
@@ -116,7 +116,7 @@ macro_rules! impl_system_function {
                     // InitError, means that the requested resoruce does not 
                     // exist in the world, in which case we want to stop the
                     // system from executing
-                    let $param = match $param::initialise(world.get_world_mut()) {
+                    let $param = match $param::initialise(world) {
                         (None, Some(x)) => x,
 
                         

@@ -5,12 +5,15 @@ use super::Component;
 
 
 
+/// 
 /// ### Description
 /// 
 /// This Handle represents an immutable access acquired into a
 /// specific component from the world.
+/// 
 /// This handle is an interface to be used by the user to gain
-/// immutable access into a component inside a system function.
+/// immutable access into a component inside a [`system`](crate::System) function.
+/// 
 pub struct ComponentHandle<C: Component + 'static> {
     inner: OwnedRwLockReadGuard<C>
 }
@@ -33,12 +36,14 @@ impl<C: Component + 'static> Deref for ComponentHandle<C> {
 
 
 
+/// 
 /// ### Description
 /// 
 /// This handle represents a mutable access acquired into
 /// specific component from the world. 
 /// This handle is an interface object used by the user
 /// to mutate the world components in systems
+/// 
 pub struct MutComponentHandle<C: Component + 'static> {
     inner: OwnedRwLockWriteGuard<C>,
 }
@@ -64,7 +69,16 @@ impl<C: Component + 'static> DerefMut for MutComponentHandle<C> {
 
 
 
-// @TODO: Document
+///
+/// ### Description
+/// 
+/// This is the wrapper struct which allows us to access a 
+/// [`component`](Component) lock tuple acquired using the 
+/// [crate::CrossComponentCollectionMut] [`system param`](crate::system::param::SystemParam)
+/// 
+/// This type implements the [Deref] trait to allow us to 
+/// directly access the underlying component.
+/// 
 pub struct CrossComponentHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a OwnedRwLockReadGuard<C>,
 }
@@ -79,7 +93,17 @@ impl<C: Component + 'static> Deref for CrossComponentHandle<'_, C> {
 
 
 
-// @TODO: Document
+///
+/// ### Description
+/// 
+/// This is the wrapper struct which allows us to access a 
+/// [Component] lock tuple acquired using the [crate::CrossComponentCollectionMut]
+/// [`system param`](crate::system::param::SystemParam)
+/// 
+/// This type implements the [Deref] and [DerefMut] trait to 
+/// allow us to directly access and modify the underlying 
+/// component.
+/// 
 pub struct CrossMutComponentHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a mut OwnedRwLockWriteGuard<C>,
 }

@@ -25,7 +25,6 @@ pub enum ResourceFetchResult {
 /// by storing an owned guard to a particular resource in the system.
 ///     
 
-
 #[derive(SystemParam)]
 pub struct ResourceHandle<R: Resource + 'static>
 where
@@ -36,37 +35,27 @@ where
 }
 
 impl<'a, R: Resource + 'static> SystemParam for ResourceHandle<R> {
-    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) {
-        // @SAFETY:
-        // 1. The world does not go out of scope (Otherwise we wouldn't be executing this function)
-        // 2. The guard is only returned by the world only if no other
-        //      mutable access guard to the resource is alive
-        unsafe {
-            match (*world).get_resource_ref::<R>() {
-                (ResourceFetchResult::Success, Some(guard_box)) => {
-                    (
-                        None,
-                        Some(
-                            Self {
-                                inner_guard_box: guard_box,
-                                _marker: std::marker::PhantomData,
-                            }
-                        )
-                    )
-                },
-                (ResourceFetchResult::Occupied, None) => (None, None),
-                (ResourceFetchResult::DoesNotExist, None) => (Some(InitError{}), None),
-                _ => panic!("Invalid result of initialisation")
-            }
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>) {
+        match (*world).get_resource_ref_lock::<R>() {
+            (ResourceFetchResult::Success, Some(guard_box)) => (
+                None,
+                Some(Self {
+                    inner_guard_box: guard_box,
+                    _marker: std::marker::PhantomData,
+                }),
+            ),
+            (ResourceFetchResult::Occupied, None) => (None, None),
+            (ResourceFetchResult::DoesNotExist, None) => (Some(InitError {}), None),
+            _ => panic!("Invalid result of initialisation"),
         }
     }
-    
+
     fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
         let mut hash_set = hashbrown::HashSet::new();
         hash_set.insert(std::any::TypeId::of::<R>());
         hash_set
     }
-    
+
     fn is_resource_access_mut() -> bool {
         false
     }
@@ -90,37 +79,27 @@ where
 }
 
 impl<'a, R: Resource + 'static> SystemParam for MutResourceHandle<R> {
-    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>) {
-        // @SAFETY:
-        // 1. See safety description in [`ResourceHandle`]
-        // 2. The lock is only returned by the world only when the Resource is
-        //      not mutably or immutably borrowed by some process in the system.
-        unsafe {
-            match (*world).get_resource_mut::<R>() {
-                (ResourceFetchResult::Success, Some(guard_box)) => {
-                    (
-                        None,
-                        Some(
-                            Self {
-                                inner_guard_box: guard_box,
-                                _marker: std::marker::PhantomData,
-                            }
-                        )
-                    )
-                },
-                (ResourceFetchResult::Occupied, None) => (None, None),
-                (ResourceFetchResult::DoesNotExist, None) => (Some(InitError{}), None),
-                _ => panic!("Invalid result of initialisation")
-            }
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>) {
+        match (*world).get_resource_mut_lock::<R>() {
+            (ResourceFetchResult::Success, Some(guard_box)) => (
+                None,
+                Some(Self {
+                    inner_guard_box: guard_box,
+                    _marker: std::marker::PhantomData,
+                }),
+            ),
+            (ResourceFetchResult::Occupied, None) => (None, None),
+            (ResourceFetchResult::DoesNotExist, None) => (Some(InitError {}), None),
+            _ => panic!("Invalid result of initialisation"),
         }
     }
-    
+
     fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
         let mut hash_set = hashbrown::HashSet::new();
         hash_set.insert(std::any::TypeId::of::<R>());
         hash_set
     }
-    
+
     fn is_resource_access_mut() -> bool {
         true
     }

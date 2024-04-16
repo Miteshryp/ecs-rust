@@ -1,20 +1,13 @@
 use std::{
-    cell::RefCell,
-    rc::Rc,
     sync::mpsc::{channel, Receiver},
 };
 
 use crate::{
     component::Component,
-    ecs_base::ECSBase,
     schedule::{
-        holder::ScheduleHolder,
-        parallel::ParallelSchedule,
-        schedulable::{IntoSchedulable, Schedulable},
-        FlowFrequency, Schedule,
+        holder::ScheduleHolder, parallel::ParallelSchedule, ScheduleHolderFrequency, Schedule
     },
-    system::{base::SystemMarker, System},
-    world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World},
+    world::{unsafe_world::UnsafeWorldContainer, World},
 };
 
 /// ### ECS App
@@ -28,9 +21,9 @@ use crate::{
 /// ---
 ///
 /// The [`App`] struct contains 2 fields:
-///     - #### world:
-///         In laymens terms, this is the state container of the system. See
-///         [`World`] for more info.
+/// - #### world:
+///     In laymens terms, this is the state container of the system. See
+///     [`World`] for more info.
 /// 
 /// - #### schedule_holder:
 ///     This is a container which contains different types of [Schedule]s inserted
@@ -51,13 +44,21 @@ use crate::{
 /// ### Example:
 ///
 /// ```
-/// // @TODO: Write this example
 /// fn main() {
+///     let mut app = App::new();
+/// 
+///     let schedule = ParallelSchedule::new();
+///     /// add systems to schedule
+/// 
+///     let schedule_holder = ScheduleHolder::new(ScheduleHolderFrequency::Always)
+///     let holder_index = app.register_flow(schedule_holder);
 ///     
+///     app.add_to_holder_index(holder_index, schedule);
+///     app.start();
+/// 
 /// }
 /// ```
 ///
-/// @TODO: Determing the Schedule flow architecture
 pub struct App {
     world_container: UnsafeWorldContainer,
     schedule_flows: Vec<ScheduleHolder>,
@@ -89,7 +90,7 @@ impl App {
     /// ### Return Value:
     /// An index representing the priority order of the registered flow
     /// Lower the order, higher the priority.
-    pub fn register_flow(&mut self, frequency: FlowFrequency) -> usize {
+    pub fn register_schedule_holder(&mut self, frequency: ScheduleHolderFrequency) -> usize {
         let index = self.schedule_flows.len();
         self.schedule_flows.push(ScheduleHolder::new(frequency));
         index
@@ -101,7 +102,7 @@ impl App {
     /// Used to add a [`Schedulable`] item (which is system function) into a specified
     /// [`holder`](ScheduleHolder) position. 
     /// This determines the order or frequency of execution for the holder.
-    pub fn add_to_flow(&mut self, flow_index: usize, item: impl Schedule + 'static) {
+    pub fn add_to_holder_index(&mut self, flow_index: usize, item: impl Schedule + 'static) {
         self.schedule_flows[flow_index].add(Box::new(item));
     }
 
@@ -147,7 +148,13 @@ impl App {
         }
     }
 
-    /// @TODO: Document
+    /// 
+    /// ### Description
+    /// 
+    /// App API to register a component type in the world. 
+    /// A component must be registered in a world before adding
+    /// the component to any entity in the world. 
+    /// 
     pub fn register_component<C: Component + 'static>(&mut self) {
         self.world_container
             .get_world_mut()

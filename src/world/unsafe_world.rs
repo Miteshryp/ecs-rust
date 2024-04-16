@@ -35,10 +35,6 @@ pub(crate) struct UnsafeWorldContainer {
     pub(crate) world: Cell<World>,
 }
 
-// @TODO: Define @SAFETY
-unsafe impl Send for UnsafeWorldContainer {}
-unsafe impl Sync for UnsafeWorldContainer {}
-
 impl UnsafeWorldContainer {
     // pub(crate) fn new(command_sender: Sender<CommandFunction>) -> Self {
     pub(crate) fn new(command_sender: Sender<Box<dyn FnMut(&mut World) -> ()>>) -> Self {

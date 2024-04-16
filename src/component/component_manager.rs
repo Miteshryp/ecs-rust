@@ -51,7 +51,10 @@ pub(crate) struct ComponentManager<Comp>
 where
     Comp: Component,
 {
-    /// @TODO: @Document the member variable
+    /// Component storage vector which stores [Arc] of [RwLock].
+    /// The [Arc] helps in keeping the memory alive untill all references
+    /// have been invalidated, whereas the [RwLock] is essential for ensuring
+    /// appropriate access across threads
     components: Vec<Arc<RwLock<Comp>>>,
 
     /// Stores the [entity ids](Entity) of the [`components`](ComponentManager::components)
@@ -88,9 +91,8 @@ where
     ///
     /// Removes a component from the entity if the component was attached,
     fn remove_component_from_entity(&mut self, entity_id: Entity) {
+        
         // Entity must have a component of type [`Comp`] attached for removal to be possible
-        // @TODO: Remove assertion and add result based code
-
         if !self.entity_component_map.contains_key(&entity_id) {
             let err_str = format!(
                 "Entity [{:?}] does not have a component of type \'{}\'",
@@ -153,7 +155,6 @@ where
     /// Adds a component into the system based on the stack-build object passed
     /// as a parameter
     pub fn add_component_to_entity(&mut self, entity_id: Entity, component: Comp) {
-        // @TODO: Remove assertion and implement results based function
         assert!(
             !self.entity_component_map.contains_key(&entity_id),
             "Component addition to Entity [{:?}] failed: Duplicate components are not allowed in entities.", 
@@ -167,7 +168,15 @@ where
         self.entity_component_map.insert(entity_id, component_index);
     }
 
-    // @TODO: Document
+    ///
+    /// ### Description
+    /// 
+    /// Returns a read lock into the component of type [`Comp`]
+    /// in the form of an option
+    /// 
+    /// If the component is not attached to the entity, the option
+    /// is returned as None
+    /// 
     pub fn borrow_component(&self, entity_id: Entity) -> Option<OwnedRwLockReadGuard<Comp>> {
         let component_index = match self.entity_component_map.get(&entity_id) {
             Some(x) => x,
@@ -197,7 +206,15 @@ where
         }
     }
 
-    // @TODO: Document
+    ///
+    /// ### Description
+    /// 
+    /// Returns a write lock into the component of type [`Comp`]
+    /// in the form of an option.
+    /// 
+    /// If the component is not attached to the entity, the option
+    /// is returned as None
+    /// 
     pub fn borrow_component_mut(&self, entity_id: Entity) -> Option<OwnedRwLockWriteGuard<Comp>> {
         let component_index = match self.entity_component_map.get(&entity_id) {
             Some(x) => x,
@@ -228,7 +245,16 @@ where
     }
 
 
-    // @TODO: Document
+    /// 
+    /// ### Description
+    /// 
+    /// Returns all components in the manager as a [Option<Vector>] of read locks
+    /// to provide read access into all components manager by this 
+    /// component manager.
+    /// 
+    /// If any one of the lock acquisitions fail, we return None inside
+    /// the option
+    /// 
     pub fn borrow_all_components(&self) -> Option<Vec<OwnedRwLockReadGuard<Comp>>> {
         let mut vec = vec![];
         for component in &self.components {
@@ -243,7 +269,16 @@ where
     }
 
 
-    // @TODO: Document
+    /// 
+    /// ### Description
+    /// 
+    /// Returns all components in the manager as a [Option<Vector>] 
+    /// of write locks to provide read access into all components 
+    /// manager by this component manager.
+    /// 
+    /// If any one of the lock acquisitions fail, we return None inside
+    /// the option
+    /// 
     pub fn borrow_all_components_mut(&self) -> Option<Vec<OwnedRwLockWriteGuard<Comp>>> {
         let mut vec = vec![];
         for component in &self.components {

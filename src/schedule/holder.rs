@@ -1,6 +1,6 @@
 use crate::world::unsafe_world::UnsafeWorldContainer;
 
-use super::{FlowFrequency, Schedule, schedulable::{Schedulable}};
+use super::{ScheduleHolderFrequency, Schedule, schedulable::{Schedulable}};
 
 /// @SOLVED: Maybe to compensate the Schedule holding Schedule issue,
 /// we can implement a parent trait to Schedule which can be implemented
@@ -13,11 +13,11 @@ use super::{FlowFrequency, Schedule, schedulable::{Schedulable}};
 pub struct ScheduleHolder {
     executions: Vec<Box<dyn Schedule>>,
     ticks: u32,
-    frequency: FlowFrequency
+    frequency: ScheduleHolderFrequency
 }
 
 impl ScheduleHolder {
-    pub fn new(frequency: FlowFrequency) -> Self {
+    pub fn new(frequency: ScheduleHolderFrequency) -> Self {
         Self { executions: vec![], ticks: 0, frequency }
     }
 
@@ -34,7 +34,7 @@ impl ScheduleHolder {
 
         self.ticks += 1;
         self.ticks = match self.frequency {
-            FlowFrequency::Once => 1,
+            ScheduleHolderFrequency::Once => 1,
             _ => self.ticks % self.frequency as u32
         };
 

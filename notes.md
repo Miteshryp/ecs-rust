@@ -57,13 +57,13 @@ We create `EntityId`s using the concept of generational indexes (see reference f
 
 
 
-# Resources
-Resources are just components in the world which do not have any parent entity. These 'resources' will have to be identified by a special `ResourceId` since they do not have any parents.
+# RESOURCES
+Resources are just components in the world which do not have any parent entity.
 
-Since they are also independent, we do not need to enforce their storage in a contiguous memory block, and hence can be stored in hashmaps (or sparsesets in bevy) to store the Resources.
+Since they are independent, we do not need to enforce their storage in a contiguous memory block, and hence they can be stored in hashmaps (or sparsesets in bevy) to store the Resources. 
 
 Just like components can be fetched using the id of the entity they are attached to, resources will be fetched using the Type of Resource required.
-We also need to keep checks in place to ensure that there are not more than one instance of a single resource type.
+We also need to keep checks in place to ensure that there is never more than one instance of a single resource type.
 
 
 
@@ -74,25 +74,6 @@ We also need to keep checks in place to ensure that there are not more than one 
 - These `SystemParam`s are extractors responsible for extracting the state values from a world instance in a safe manner for execution on schedules.
 
 - These `extractor` parameters are going to be declared by ECS system and can be used by the user to extract state data from the assigned world to be used in a system function.
-
-### Critical issue regarding parallel systems
-
-
-##### Problem
-Currently, all the `SystemParam`s that need to be passed into a system are being initialised everytime run is called on the system, which means that all `SystemParam`s try to initialise every frame.
-
-But this could also cause trouble leading to data race conditions.
-
-However, we cannot really create a RwLock on the world, since that would essentially force the entire design to be sequential, since the initialise function requires a `&mut World`, and that would require every system to secure a lock to the world before execution, hence essentially making the system sequential.
-
-
-##### Solution adapted
-To solve this, we have to allow multiple `&mut World`s, but we have to ensure that the internal state remains consistent throughout, meaning that if 2 systems are accessing the same resource, they should be `relatively sequential`
-
-In simple words, each resource defined in the World structure needs to be individualistically locked using RwLocks. `Extractors` will then own the locks returned by the extraction function.
-
-No 2 conflicting extractors should run at the same time to cause lock owning conflict. This is the responsibility of a Scheduler. 
-
 
 
 
@@ -183,43 +164,59 @@ I think this is again a problem of coupling 2 unrelated components of the system
 # Schedule system
 All the systems are stored in the `App` struct, which stores these systems inside a `Schedule` type object. This schedule is primarily responsible for ensuring that each function parameter initialises in a safe manner.
 
-These schedules themselves are then held inside App using a `SystemHolder` struct. The system holder then sequentially runs these schedule in the order tha the `SystemHolder`s were registered in. 
-A `SystemHolder` can be registered in an App using the `register_flow` function. The holders (or flows) registered first will have a priority in execution.
+The schedule automatically arranges the system in the appropriate order as per the schedule type. Currently, we only have support for the paralle scheduler and the serial scheduler support has been removed since its not going to be practical in most cases.
+The Scheduler system can also receive signal from a parameter initialisation, and if any one of the parameter signals a failure, we can automatically abort the execution of the system.
+In the new model, a system initialisation can only really fail if the requested world resource does not exist. In this case, the system execution is halted in the current frame, and execution happens only if the requested resource exists in the world.
+
+
+These schedules themselves are then held inside App using a `ScheduleHolder` struct. The system holder then sequentially runs these schedule in the order tha the `ScheduleHolder`s were registered in. 
+A `ScheduleHolder` can be registered in an App using the `register_flow` function. The holders (or flows) registered first will have a priority in execution.
 
 At the end of each flow execution, the command buffer is flushed and changes are made to the world which were initiated inside the system.
 
-// @TODO: Extend the document after finalising and completing the frequency feature.
+### ScheduleHolder frequency
+A `ScheduleHolder` is a wrapper which stores multiple schedules in them to be executed in parallel. These holders are also responsible for processing other data which is not directly related to the schedules it contains. This includes the frequency of execution of the schedule holder. 
+This allows the user to control the execution of certain systems based on their holder index.
 
 
 
 # Parallel Dependency Graph based Scheduling
 - The dependency graph will expose a single layer at a time, which will consist of all the nodes which have an in-degree of zero
-- What this means is that the systems in that layer do not conflict with any other system which has pending execution
-- So this means that these systems could have parallel access into the world and still ensure that no 2 resources in the world are being accessed at the same time. Hence, these systems are safe to run in parallel.
-- Hence, given that this assertion stays true, we can let the `UnsafeWorld` type be a `Send + Sync` type
+- What this means is that the systems in that layer do not conflict with any other system in that layer which has pending execution
+- So this means that these systems could have parallel access into the world and still ensure that no 2 resources in the world are being accessed at the same time. Hence, these systems are safe to run in parallel, even with mutable access to the world (although we have removed mutable world access since its not really required (internal API calls are immutably accessible)).
 
 - This dependecy graph can also contain injected dependecies (Forcing a system to execute after another one) for 2 systems even if there is no conflict between them.
 
-## Task List
-[] Internal Type Id system for world resources
-[] Create a bloom filter based on dependencies for a system.
-[] Design a struct to store dependency graph (acyclic)
-    - An enclosing DAG struct
-    - Definition of a node
-        - system (func + dependencies)
-    - Definition of an edge
-        - Find a conflict in dependencies.
-        - Find any enforced dependencies.
-[] Construct that dependency graph for all systems in a schedule.
-[] Traverse the graph and initialise-run the systems
-    - Find the nodes with in-degree 0
-    - Execute and remove those nodes
-    - Update the graph to find new in-degrees
-
-There can only be one schedule running at any given time, since the context (essentially the graph, which ensures that parallel access to the world is safe) is local to a schedule
 
 ## Internal Dependency Conflicts
-@TODO: Write a detailed note
+Internal dependency errors can arise if two conflicting parameters are declared in a single system function.
+These systems result in a all-system crash, since execution of such systems could result in an eternal pause on execution due to race condition
+
+```rust
+fn internal_error_example(ResourceHandle<R>, ResourceHandleMut<R>) {
+    // Will result in eternal pause of the entire system
+    // Inserting these types of systems in any schedule
+    //  will cause a panic
+}
+```
+
+
+
+
+
+# Schedule Holders
+
+
+# EXTRACTORS
+
+- ComponentCollection/Mut
+- CrossComponentCollection/Mut
+- Query/Mut
+- CommandBufferWriter
+- EventReader / EventWriter
+- ResourceHandle/Mut
+
+
 
 
 

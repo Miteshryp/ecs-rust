@@ -4,16 +4,24 @@ use std::path::Iter;
 use ecs_macros::SystemParam;
 use tokio::sync::OwnedRwLockWriteGuard;
 
-use crate::ECSBase;
 use crate::component::handles::{ComponentHandle, MutComponentHandle};
-use crate::system::param::{InitError, SystemParam};
 use crate::component::Component;
+use crate::system::param::{InitError, SystemParam};
+use crate::world::World;
+use crate::ECSBase;
 
 
-/// @TODO: Documents
+/// 
+/// ### Description
+/// 
+/// A structure which can be a [`parameter`](crate::system::SystemParam)
+/// in a [`system`](crate::System) function which enables the user to 
+/// immutably access and iterate over a specified type of [Component] in 
+/// [`world`][crate::World]
+/// 
 #[derive(SystemParam)]
 pub struct ComponentCollection<C: Component + 'static> {
-    locks: Vec<ComponentHandle<C>>
+    locks: Vec<ComponentHandle<C>>,
 }
 
 impl<C: Component + 'static> IntoIterator for ComponentCollection<C> {
@@ -26,21 +34,29 @@ impl<C: Component + 'static> IntoIterator for ComponentCollection<C> {
     }
 }
 
-
 impl<C: Component + 'static> SystemParam for ComponentCollection<C> {
-    fn initialise(world: *mut crate::world::World) -> (Option<super::InitError>, Option<Self>) where Self: Sized {
-        unsafe {
-            let self_obj = Self {
-                locks: match (*world).get_all_component_locks::<C>() {
-                    Some(x) => {
-                        x.into_iter().map(|lock| ComponentHandle::new(lock) ).collect()
-                    },
-                    None => return (Some(InitError{}), None),
-                },
-            };
+    fn initialise(world: &World) -> (Option<super::InitError>, Option<Self>)
+    where
+        Self: Sized,
+    {
+        let self_obj = Self {
+            locks: match world.get_all_component_locks::<C>() {
+                Some(x) => {
+                    let lock_vec: Vec<ComponentHandle<C>> = x.into_iter()
+                    .map(|lock| ComponentHandle::new(lock))
+                    .collect();
 
-            return (None, Some(self_obj))
-        }
+                    if lock_vec.len() == 0 {
+                        return (Some(InitError{}), None)
+                    }
+
+                    lock_vec
+                },
+                None => return (Some(InitError {}), None),
+            },
+        };
+
+        return (None, Some(self_obj));
     }
 
     fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
@@ -58,12 +74,18 @@ impl<C: Component + 'static> SystemParam for ComponentCollection<C> {
 
 
 
-/// @TODO: Document
+/// 
+/// ### Description
+/// 
+/// A structure which can be a [`parameter`](crate::system::SystemParam)
+/// in a [`system`](crate::System) function which enables the user to 
+/// mmutably access and iterate over a specified type of [Component] in 
+/// [`world`][crate::World]
+/// 
 #[derive(SystemParam)]
 pub struct ComponentCollectionMut<C: Component + 'static> {
     locks: Vec<MutComponentHandle<C>>,
 }
-
 
 impl<C: Component + 'static> IntoIterator for ComponentCollectionMut<C> {
     type Item = MutComponentHandle<C>;
@@ -75,19 +97,30 @@ impl<C: Component + 'static> IntoIterator for ComponentCollectionMut<C> {
     }
 }
 
-
 impl<C: Component + 'static> SystemParam for ComponentCollectionMut<C> {
-    fn initialise(world: *mut crate::world::World) -> (Option<super::InitError>, Option<Self>) where Self: Sized {
-        unsafe {
-            let self_obj = Self {
-                locks: match (*world).get_all_component_locks_mut::<C>() {
-                    Some(x) => x.into_iter().map(|lock| MutComponentHandle::new(lock)).collect(),
-                    None => return (Some(InitError{}), None),
-                },
-            };
+    fn initialise(world: &World) -> (Option<super::InitError>, Option<Self>)
+    where
+        Self: Sized,
+    {
+        let self_obj = Self {
+            locks: match world.get_all_component_locks_mut::<C>() {
+                Some(x) => {
+                    let lock_vec: Vec<MutComponentHandle<C>> = x
+                    .into_iter()
+                    .map(|lock| MutComponentHandle::new(lock))
+                    .collect();
 
-            return (None, Some(self_obj))
-        }
+                    if lock_vec.len() == 0 {
+                        return (Some(InitError{}), None)
+                    }
+
+                    lock_vec
+                },
+                None => return (Some(InitError {}), None),
+            },
+        };
+
+        return (None, Some(self_obj));
     }
 
     fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {

@@ -36,11 +36,11 @@ pub trait SystemQuery {
     fn get_query_component_ids() -> Vec<TypeId>;
 
     fn get_components_for_entities(
-        world: *mut World,
+        world: &World,
     ) -> Option<Vec<Self::EntityComponentHandleTuple>>;
 
     fn get_mut_components_for_entities(
-        world: *mut World,
+        world: &World,
     ) -> Option<Vec<Self::EntityMutComponentHandleTuple>>;
 
     fn get_component_typeid_set() -> hashbrown::HashSet<TypeId>;
@@ -68,11 +68,11 @@ macro_rules! query_systems {
             }
 
             fn get_components_for_entities(
-                world: *mut World,
+                world: &World,
             ) -> Option<Vec<Self::EntityComponentHandleTuple>> {
                 // Geting all entities which have the components mentioned in the tuple
                 let entities: hashbrown::HashSet<&Entity> =
-                unsafe { (*world).get_entities_with_components::<Self>() };
+                world.get_entities_with_components::<Self>();
 
                 // Get the mutable component access for each one of them, and push it to the vec
                 let mut aggregated_vec: Vec<Self::EntityComponentHandleTuple> = vec![];
@@ -82,7 +82,7 @@ macro_rules! query_systems {
                     let tuple = (
                         *entity,
                         $(
-                            match unsafe { (*world).get_component_ref_lock::<$param>(*entity) } {
+                            match world.get_component_ref_lock::<$param>(*entity) {
                                 Some(x) => ComponentHandle::new(x),
 
                                 // If the component fetch fails, this means that either
@@ -106,11 +106,11 @@ macro_rules! query_systems {
             }
 
             fn get_mut_components_for_entities(
-                world: *mut World,
+                world: &World,
             ) -> Option<Vec<Self::EntityMutComponentHandleTuple>> {
                 // Geting all entities which have the components mentioned in the tuple
                 let entities: hashbrown::HashSet<&Entity> =
-                unsafe { (*world).get_entities_with_components::<Self>() };
+                world.get_entities_with_components::<Self>();
 
                 // Get the mutable component access for each one of them, and push it to the vec
                 let mut aggregated_vec: Vec<Self::EntityMutComponentHandleTuple> = vec![];
@@ -120,7 +120,7 @@ macro_rules! query_systems {
                     let tuple = (
                         *entity,
                         $(
-                            match unsafe { (*world).get_component_ref_mut_lock::<$param>(*entity) } {
+                            match world.get_component_ref_mut_lock::<$param>(*entity) {
                                 Some(x) => MutComponentHandle::new(x),
 
                                 // If the component fetch fails, this means that either

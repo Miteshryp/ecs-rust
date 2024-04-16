@@ -3,8 +3,7 @@ pub mod base_query;
 use base_query::SystemQuery;
 
 use std::{
-    any::TypeId,
-    vec::IntoIter,
+    any::TypeId, slice::{Iter, IterMut}, vec::IntoIter
 };
 
 use crate::ECSBase;
@@ -17,21 +16,36 @@ use super::{InitError, SystemParam};
 
 
 
+/// 
 /// ### Description
 ///
-/// Extracts the specified type of Components from the world to query.
+/// A system parameter structure which could be used to iterate
+/// through [`component`](crate::component::Component)s coupled 
+/// with their [`entity_id`](crate::Entity)
+/// 
+/// This parameter allows to find entities with a subset of 
+/// components and mutate the components attached
+/// to the entity
 ///
 /// The struct supplies the component's along with their [`Entity`](crate::entity::Entity)
 /// **if and only if**
 ///     - All components specified are attached to the entity_id.
 ///     - All components are free for use and not being held by another system for use.
 ///     (NOTE: This has a high chance of resulting in a deadlock through mutual starvation)
-///
-///
+/// 
+/// 
+/// 
 #[derive(SystemParam)]
 pub struct Query<T: SystemQuery> {
     entity_tuple_vec: Vec<<T as SystemQuery>::EntityComponentHandleTuple>,
 }
+
+impl<T: SystemQuery> Query<T> {
+    pub fn iter(&self) -> Iter<'_, <T as SystemQuery>::EntityComponentHandleTuple> {
+        self.entity_tuple_vec.iter()
+    }
+}
+
 
 impl<T: SystemQuery> IntoIterator for Query<T> {
     type Item = <T as SystemQuery>::EntityComponentHandleTuple;
@@ -45,11 +59,8 @@ impl<T: SystemQuery> IntoIterator for Query<T> {
 
 
 
-/// SAFETY: See SAFETY at [SystemParam]
-// unsafe impl<T: SystemQuery> Sync for Query<T>{}
-
 impl<T: SystemQuery + 'static> SystemParam for Query<T> {
-    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>)
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>)
     where
         Self: Sized,
     {
@@ -60,7 +71,6 @@ impl<T: SystemQuery + 'static> SystemParam for Query<T> {
                 // no elements in the query.
                 // @NOTE: This could however present a situation where
                 //      the user does not know this behavior for query
-                // @TODO: Document this behavior in both Query structs
                 return (Some(InitError {}), None);
             }
             (
@@ -87,7 +97,25 @@ impl<T: SystemQuery + 'static> SystemParam for Query<T> {
 
 
 
-// @TODO: Document
+/// 
+/// ### Description
+/// 
+/// A system parameter structure which could be used to iterate
+/// through [`component`](crate::component::Component)s coupled 
+/// with their [`entity_id`](crate::Entity)
+/// 
+/// This parameter allows to find entities with a subset of 
+/// components and mutate the components attached
+/// to the entity
+/// 
+/// The struct supplies the component's along with their [`Entity`](crate::entity::Entity)
+/// **if and only if**
+///     - All components specified are attached to the entity_id.
+///     - All components are free for use and not being held by another system for use.
+///     (NOTE: This has a high chance of resulting in a deadlock through mutual starvation)
+///
+/// 
+/// 
 #[derive(SystemParam)]
 pub struct QueryMut<T: SystemQuery> {
     entity_tuple_vec: Vec<<T as SystemQuery>::EntityMutComponentHandleTuple>,
@@ -104,10 +132,20 @@ impl<T: SystemQuery> IntoIterator for QueryMut<T> {
     }
 }
 
+impl<T: SystemQuery> QueryMut<T> {
+    pub fn iter(&self) -> Iter<'_, <T as SystemQuery>::EntityMutComponentHandleTuple> {
+        self.entity_tuple_vec.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, <T as SystemQuery>::EntityMutComponentHandleTuple> {
+        self.entity_tuple_vec.iter_mut()
+    }
+}
+
 
 
 impl<T: SystemQuery + 'static> SystemParam for QueryMut<T> {
-    fn initialise(world: *mut World) -> (Option<InitError>, Option<Self>)
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>)
     where
         Self: Sized,
     {
@@ -117,7 +155,6 @@ impl<T: SystemQuery + 'static> SystemParam for QueryMut<T> {
                 // no elements in the query.
                 // @NOTE: This could however present a situation where
                 //      the user does not know this behavior for query
-                // @TODO: Document this behavior in both Query structs
                 return (Some(InitError {}), None);
             }
             (
@@ -139,5 +176,3 @@ impl<T: SystemQuery + 'static> SystemParam for QueryMut<T> {
         true
     }
 }
-// @TODO: Implement iterators for all query types
-

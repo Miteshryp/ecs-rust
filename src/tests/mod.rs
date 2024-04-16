@@ -92,14 +92,14 @@ fn parallel_scheduler_test() {
 
     schedule.add_ordered(test_system2.before(ordered_to_system2));
     schedule.add_boxed(mut_res_sys.into_schedulable());
-    
+
     // Init flow
-    let init_index = app.register_flow(schedule::FlowFrequency::Once);
-    let update = app.register_flow(schedule::FlowFrequency::Always);
+    let init_index = app.register_schedule_holder(schedule::ScheduleHolderFrequency::Once);
+    let update = app.register_schedule_holder(schedule::ScheduleHolderFrequency::Always);
 
     // app.register_component::()
-    app.add_to_flow(init_index, once_schedule);
-    app.add_to_flow(update, schedule);
+    app.add_to_holder_index(init_index, once_schedule);
+    app.add_to_holder_index(update, schedule);
 
     app.start();
     loop {

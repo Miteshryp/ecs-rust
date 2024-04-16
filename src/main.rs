@@ -17,7 +17,7 @@ use ecs_base::ECSBase;
 use ecs_macros::{Component, Event, Resource};
 use entity::Entity;
 use resource::Resource;
-use schedule::{parallel::ParallelSchedule, schedulable::IntoSchedulable, FlowFrequency, Schedule};
+use schedule::{parallel::ParallelSchedule, schedulable::IntoSchedulable, ScheduleHolderFrequency, Schedule};
 use std::{any::Any, sync::mpsc::channel};
 use system::param::{CommandBufferWriter, ComponentCollectionMut, CrossComponentCollectionMut, EventReader, EventWriter, MutResourceHandle, QueryMut, ResourceHandle};
 use world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World};
@@ -97,12 +97,12 @@ fn main() {
     schedule.add_boxed(cross_component_system.into_schedulable());
 
     // Init holder
-    let init_index = app.register_flow(schedule::FlowFrequency::Once);
-    let update = app.register_flow(schedule::FlowFrequency::Always);
+    let init_index = app.register_schedule_holder(schedule::ScheduleHolderFrequency::Once);
+    let update = app.register_schedule_holder(schedule::ScheduleHolderFrequency::Always);
     
     // app.register_component::()
-    app.add_to_flow(init_index, once_schedule);
-    app.add_to_flow(update, schedule);
+    app.add_to_holder_index(init_index, once_schedule);
+    app.add_to_holder_index(update, schedule);
 
     app.start();
     // loop {

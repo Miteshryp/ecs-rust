@@ -15,18 +15,16 @@ pub struct CommandBufferWriter {
 }
 
 impl SystemParam for CommandBufferWriter {
-    fn initialise(world: *mut crate::world::World) -> (Option<InitError>, Option<Self>)
+    fn initialise(world: &World) -> (Option<InitError>, Option<Self>)
     where
         Self: Sized,
     {
-        unsafe {
-            (
-                None,
-                Some(Self {
-                    writer_channel: (*world).get_command_writer(),
-                }),
-            )
-        }
+        (
+            None,
+            Some(Self {
+                writer_channel: (*world).get_command_writer(),
+            }),
+        )
     }
 
     fn get_resource_access_type() -> hashbrown::HashSet<std::any::TypeId> {
