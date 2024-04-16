@@ -6,13 +6,12 @@ Another additional goal of this project is to actually explore how this architec
 
 # PRIMARY
 
-[] Write Extractors
+[x] Write Extractors
 
-    [] Interaction between 2 different types of component (this is a set cross products of components specified in the extractor type.) 
-    [] Write iterators for Query and QueryMut extractors
-    [] Write individual Component extractor iterators
+    [x] Interaction between 2 different types of component (this is a set cross product of components specified in the extractor type.) 
 
-[x] Enable move functionality on command buffer closures
+    [x] Write iterators for Query and QueryMut extractors
+    [x] Write individual Component extractor iterators
 
 [x] Review the parallel execution code
 
@@ -22,16 +21,9 @@ Another additional goal of this project is to actually explore how this architec
 
 [] Cleanup codebase from un-needed comments
 
-[x] Fix internal dependency bug
-    - [x] Test if this is fixed.
-
 [] Find some way to report the internal dependency bug at compile time
     
     - Might be possible using attribute based macros. We can try to create assert statements inside the function to point out the issue with dependency
-
-[x] Fixing the dependency metadata fetching API (The metadata that we receive right now does not indicate the type of access - immutable/mutable, since we are simply returning a set of dependencies rn. We need to change this)
-
-[x] Decoupling metadata and runtime dependency objects from the `SystemDependency` struct.
 
 [] Think about implementing our own type system
     - TypeId is 128 bits, which is an overkill
@@ -45,13 +37,6 @@ Another additional goal of this project is to actually explore how this architec
     
     It could pose some challenges such as rust borrow checker issues to store the resource references, etc. This could only be figured out by actually writing the refactor 
 
-[x] Find a way to insert a node in DAG. (Topological sort.)
-
-    - Sort based on in-degree
-    - When inserting a new node, check for dependencies from lowest to highest in-order. At every level of iteration, remove the nodes with indegree 0 and proceed to the next iteration with updated in-degrees.
-    - If the node to be inserted does not clash with a node of 0 in-order in an iteration, insert it with them and exit the insertion.
-
-[x] Create a solution for induced dependencies in a parallel schedule
 
 [] Find a solution for multiple world problem
     - Each world has resources, which are shared among scenes, but also
@@ -68,10 +53,8 @@ Another additional goal of this project is to actually explore how this architec
 [] Integrate testing tools into the project (miri, turmoil, etc)
 
 
-
-[x] Redesign the System API to be functional
-
-[] Design and write a ComponentHandle extractor.
+[x] Design and write a ComponentHandle extractor.
+    - This is named ComponentCollection and ComponentCollectionMut
 
 [] Redesign Schedule flow to an acceptable solution.
 
@@ -93,8 +76,6 @@ Another additional goal of this project is to actually explore how this architec
  
 
 [x] Design Event flow (See notes.md -> Processing Events Internally)
-
-[x] Implement the Designed Event flow
 
 [] Think about adding a schedule flow dedicated to handling events, which is going to be executed in a specific order.
 

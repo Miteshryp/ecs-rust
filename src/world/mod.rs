@@ -24,7 +24,7 @@ use crate::{
     events::{event_manager::EventManager, Event},
     resource::{Resource, ResourceId},
     system::param::{
-        EventReader, EventWriter, MutResourceHandle, ResourceFetchResult, SystemQuery,
+        EventReader, EventWriter, MutResourceHandle, ResourceFetchResult, base_query::SystemQuery,
     },
 };
 
@@ -456,6 +456,19 @@ impl World {
 
         active_entities
     }
+
+
+    // @TODO: Document
+    pub(crate) fn get_all_component_locks<C: Component + 'static>(&mut self) -> Option<Vec<OwnedRwLockReadGuard<C>>> {
+        self.get_manager::<C>().borrow_all_components()
+    }
+
+
+    // @TODO: Document
+    pub(crate) fn get_all_component_locks_mut<C: Component + 'static>(&mut self) -> Option<Vec<OwnedRwLockWriteGuard<C>>> {
+        self.get_manager_mut::<C>().borrow_all_components_mut()
+    }
+
 
     pub(crate) fn get_command_writer(&self) -> Sender<Box<dyn FnMut(&mut World) -> ()>> {
         self.command_sender.clone()

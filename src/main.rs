@@ -7,6 +7,7 @@ mod resource;
 mod schedule;
 mod system;
 mod world;
+mod tests;
 
 use crate::events::Event;
 use crate::system::System;
@@ -18,11 +19,8 @@ use entity::Entity;
 use resource::Resource;
 use schedule::{parallel::ParallelSchedule, schedulable::IntoSchedulable, FlowFrequency, Schedule};
 use std::{any::Any, sync::mpsc::channel};
-use system::param::{CommandBufferWriter, EventReader, EventWriter, MutResourceHandle, QueryMut, ResourceHandle};
+use system::param::{CommandBufferWriter, ComponentCollectionMut, CrossComponentCollectionMut, EventReader, EventWriter, MutResourceHandle, QueryMut, ResourceHandle};
 use world::{command_type::CommandFunction, unsafe_world::UnsafeWorldContainer, World};
-
-// Testing code
-
 
 #[derive(Component)]
 struct NewComponent {
@@ -34,12 +32,10 @@ struct SampleEvent {
     i: i32,
 }
 
-
 #[derive(Resource)]
 struct SampleResource {
     i: i32,
 }
-
 
 fn init(writer: CommandBufferWriter) {
     println!("Here");
@@ -47,58 +43,43 @@ fn init(writer: CommandBufferWriter) {
         let s = SampleResource { i: 45 };
         world.add_resource(s);
     });
-    let some_value = 34;
+    let some_value = 4;
 
     writer.add_command(move |world: &mut World| {
-        let id = world.create_entity();
-        world.add_component_to_entity(
-            id,
-            NewComponent {
-                t: some_value as f32,
-            },
-        );
+        for i in 0..3 {
+            let id = world.create_entity();
+            world.add_component_to_entity(
+                id,
+                NewComponent {
+                    t: some_value as f32 * i as f32,
+                },
+            );
+        }
     });
 }
 
-fn query_system(mut comp_query: QueryMut<(Entity, NewComponent)>) {}
-
-fn test_system(mut handle: ResourceHandle<SampleResource>) {
-    // println!("Sys A {}", handle.i);
-}
-
-fn test_system2(mut handle: ResourceHandle<SampleResource>, world_writer: CommandBufferWriter) {
-    // println!("New System {}", handle.i);
-
-    if handle.i > 150 {
-        world_writer.add_command(|world: &mut World| {
-            world.set_active(false);
-        });
+fn component_iter(mut components: ComponentCollectionMut<NewComponent>) {
+    for c in components {
+        println!("Value is: {}", c.t);
     }
 }
 
-fn mut_res_sys(mut handle: MutResourceHandle<SampleResource>, writer: EventWriter) {
-    // println!("This is the mutable system");
-    handle.i += 1;
+fn cross_component_system(mut component: CrossComponentCollectionMut<NewComponent>, commands: CommandBufferWriter) {
+    component.handler(|a, b| {
+        println!("Comp A: {} [] Comp B: {}", a.t, b.t);
+    });
 
-    if handle.i % 50 == 0 {
-        println!("Sent event");
-        writer.send_event(SampleEvent {i: handle.i / 50});
+    commands.add_command(|world| {
+        world.set_active(false);
+    })
+}
+ 
+fn query_system(mut comp_query: QueryMut<(Entity, NewComponent)>) {
+    for c in comp_query {
+        println!("EntityID: {:?}, Component Value: {}", c.0, c.1.t);
     }
 }
 
-fn event_reader(reader: EventReader<SampleEvent>) {
-    for event in reader.read_events() {
-        println!("Event Received: {}", event.i);
-    }
-}
-
-fn ordered_to_system2(mut handle: ResourceHandle<SampleResource>) {
-    // println!("Ordered system");
-}
-
-struct S1 {}
-
-struct S2 {}
 
 
 fn main() {
@@ -110,21 +91,15 @@ fn main() {
     once_schedule.add_boxed(init.into_schedulable());
 
     let mut schedule = ParallelSchedule::new();
-    schedule.add_boxed(test_system.into_schedulable());
-    schedule.add_boxed(event_reader.into_schedulable());
-    // schedule.add_boxed(test_system2.into_schedulable());
 
-    schedule.add_ordered(test_system2.before(ordered_to_system2));
-    schedule.add_boxed(mut_res_sys.into_schedulable());
-    // schedule.add_boxed(test_invalid_system.into_schedulable());
+    // schedule.add_boxed(query_system.into_schedulable());
+    // schedule.add_boxed(component_iter.into_schedulable());
+    schedule.add_boxed(cross_component_system.into_schedulable());
 
-    // test_system2 -> test_system
-    // schdeule.add_multiple(test_system.after(test_system2));
-
-    // Init flow
+    // Init holder
     let init_index = app.register_flow(schedule::FlowFrequency::Once);
     let update = app.register_flow(schedule::FlowFrequency::Always);
-
+    
     // app.register_component::()
     app.add_to_flow(init_index, once_schedule);
     app.add_to_flow(update, schedule);

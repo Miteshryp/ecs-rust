@@ -23,7 +23,7 @@ use crate::{
 /// The [`App`] struct is the user level interface for starting the ECS system
 /// and initiating the interactions with the system.
 /// The main function of the [`App`] struct is to register different user systems
-/// which handle different [`Component`]s and [`ComponentSystem`]s across the system
+/// which handle different systems inserted into the app in form of [`Schedule`]s
 ///
 /// ---
 ///
@@ -31,13 +31,21 @@ use crate::{
 ///     - #### world:
 ///         In laymens terms, this is the state container of the system. See
 ///         [`World`] for more info.
-
-///     - #### systems:
-///         This is a vector of systems stored in the `App` scheduled for execution
-///         on the Application. This vector stores a `BaseSystem` type, however this
-///         `BaseSystem` class is implemented in a specialised way by the derivable
-///         macro for the type of the system. See [`ecs_macro`](ecs_macro) for more
-///
+/// 
+/// - #### schedule_holder:
+///     This is a container which contains different types of [Schedule]s inserted
+///     in a system to be executed in a predetermined order
+///     There is definitely some overlap between a 
+///     [`crate::schedule::holder::ScheduleHolder`] and [`Schedule`]s,
+///     which can make it hard to understand. You can relate the 2 as follows:
+/// 
+///     While the schedule is responsible for ensuring that no 2 conflicting systems 
+///     inserted in the schedule get a chance to execute in parallel, the schedule
+///     flow is an enclosing entity around that schedule that allows user to define
+///     certain settings and configurations on the schedules inserted in the flow.
+///     
+///     The world stores registered [ScheduleHolder]s in a queue and executes them
+///     in a serial fashion each update cycle
 /// ---
 ///
 /// ### Example:
@@ -55,15 +63,12 @@ pub struct App {
     schedule_flows: Vec<ScheduleHolder>,
 
     // Command buffers being received by the world
-    // command_buffer: Receiver<CommandFunction>,
     command_buffer: Receiver<Box<dyn FnMut(&mut World) -> ()>>,
 }
 
-// pub trait SystemParam {}
 
 impl App {
     pub fn new() -> Self {
-        // let (sx, rx) = channel::<CommandFunction>();
         let (sx, rx) = channel::<Box<dyn FnMut(&mut World) -> ()>>();
 
         App {
@@ -76,13 +81,9 @@ impl App {
     ///
     /// ### Description
     ///
-    /// @TODO: Define and Document a Schedule flow properly
-    /// @TODO: Design and implement a solution to adjust flow execution
-    ///     frequency
-    ///
-    /// Registers a Schedule flow in the App.
+    /// Registers a [`holder`](ScheduleHolder) in the App.
     /// The order of registration determines the execution priority of the
-    /// flow being registered.
+    /// [`holder`](ScheduleHolder) being registered.
     /// Flows that get registered first will get executed first.
     ///
     /// ### Return Value:
@@ -97,15 +98,16 @@ impl App {
     ///
     /// ### Description
     ///
-    /// Adds a schedulable item into a specified schedule flow.
-    /// This determines the order or frequency of flow execution.
+    /// Used to add a [`Schedulable`] item (which is system function) into a specified
+    /// [`holder`](ScheduleHolder) position. 
+    /// This determines the order or frequency of execution for the holder.
     pub fn add_to_flow(&mut self, flow_index: usize, item: impl Schedule + 'static) {
         self.schedule_flows[flow_index].add(Box::new(item));
     }
 
     /// ### Description
     /// 
-    /// Sets the world as active and start the update cycle
+    /// Sets the world as active and starts the update cycle
     /// The update cycle continues untill a insereted system in a schedule
     /// sets the world as inactive
     pub fn start(&mut self) {
@@ -118,15 +120,11 @@ impl App {
     ///
     /// ### Description
     /// 
-    ///  Calls the update process on all the systems in the App.
+    /// Calls the update process on all the systems in the [App].
     /// 
-    /// @ISSUE: Events are being flushed at the start of the frame.
-    /// Now, since only event reader system function are not dependent 
-    /// on any world resource, they are going to be executed first in the
-    /// system schedule. 
-    /// This is a problem since the event readers will not read anything
-    /// at the start of a schedule, and in the next frame
-    /// 
+    /// This method is not required to be called explicitly by the user
+    /// since it is automatically executed untill required when the 
+    /// [`app`](App) is started
     pub fn update(&mut self) {
 
         // Flushing events from buffer.
@@ -149,15 +147,10 @@ impl App {
         }
     }
 
+    /// @TODO: Document
     pub fn register_component<C: Component + 'static>(&mut self) {
         self.world_container
             .get_world_mut()
             .register_component::<C>();
     }
-
-    // pub fn process_events(&mut self) {
-    //     for system in &mut self.systems {
-    //         system.process_events(&mut self.world_container);
-    //     }
-    // }
 }

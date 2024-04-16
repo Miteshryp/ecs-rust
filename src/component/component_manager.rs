@@ -226,4 +226,34 @@ where
             }
         }
     }
+
+
+    // @TODO: Document
+    pub fn borrow_all_components(&self) -> Option<Vec<OwnedRwLockReadGuard<Comp>>> {
+        let mut vec = vec![];
+        for component in &self.components {
+            let value = match component.clone().try_read_owned() {
+                Ok(x) => x,
+                Err(_) => return None,
+            };
+
+            vec.push(value);
+        }
+        Some(vec)
+    }
+
+
+    // @TODO: Document
+    pub fn borrow_all_components_mut(&self) -> Option<Vec<OwnedRwLockWriteGuard<Comp>>> {
+        let mut vec = vec![];
+        for component in &self.components {
+            let value = match component.clone().try_write_owned() {
+                Ok(x) => x,
+                Err(_) => return None,
+            };
+
+            vec.push(value);
+        }
+        Some(vec)
+    }
 }
