@@ -108,7 +108,7 @@ impl EntityManager {
     pub fn dispose_entity_id(&mut self, entity_id: Entity) {
         if self.entities[entity_id.index as usize].generation == entity_id.generation {
             let err_str = format!("Failed to dispose entity id {:?}: ID does not exist in the system anymore. It might have been deleted previously", entity_id);
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return;
         }
 

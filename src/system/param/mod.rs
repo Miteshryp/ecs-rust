@@ -3,14 +3,14 @@ mod event;
 mod resource;
 mod command_buffer;
 mod component_collection;
-mod cross_components;
+mod cross_components_collection;
 
 pub use query::*;
 pub use event::*;
 pub use resource::*;
 pub use command_buffer::*;
 pub use component_collection::*;
-pub use cross_components::*;
+pub use cross_components_collection::*;
 
 
 use std::{

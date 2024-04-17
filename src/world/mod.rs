@@ -205,7 +205,7 @@ impl World {
     pub fn add_resource<R: Resource + Sized + 'static>(&mut self, resource: R) {
         if self.resources.contains_key(&R::type_id()) {
             let err_str = format!("Duplicate Resource addition found: Aborting addition for Type: {:?}", R::type_id());
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return;
         }
 
@@ -230,7 +230,7 @@ impl World {
     ) {
         if !self.check_component_registered::<C>() {
             let err_str = format!("Component not registered for use: {}", C::get_name());
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return;
         }
 
@@ -254,7 +254,7 @@ impl World {
     ) {
         if !self.has_component::<C>(entity_id) {
             let err_str = format!("Component Removal failed: Component does not exist in the entity with id {:?}", entity_id);
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return;
         }
 
@@ -276,7 +276,7 @@ impl World {
     pub fn has_component<C: Component + Sized + 'static>(&self, entity_id: Entity) -> bool {
         if !self.check_component_registered::<C>() {
             let err_str = format!("Component not registered for use {}", C::get_name());
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return false;
         }
 
@@ -481,7 +481,7 @@ impl World {
             let component_manager = match self.component_managers.get(&cid) {
                 Some(x) => x,
                 None => {
-                    log::error!(
+                    log::warn!(
                         "Failed to get manager: TypeId {:?} does not belong to a registered component",
                         cid
                     );
@@ -514,7 +514,13 @@ impl World {
     /// If any one of the lock acquisition fails, the [`Option`] is 
     /// returned as a [None] value
     /// 
-    pub(crate) fn get_all_component_locks<C: Component + 'static>(&self) -> Option<Vec<OwnedRwLockReadGuard<C>>> {
+    pub(crate) fn get_all_component_locks<C: Component + 'static>(&self) -> Option<Vec<(Entity, OwnedRwLockReadGuard<C>)>> {
+        assert!(
+            self.check_component_registered::<C>(),
+            "Component not registered for use: {}",
+             C::get_name()
+        );
+
         self.get_manager::<C>().borrow_all_components()
     }
 
@@ -528,7 +534,13 @@ impl World {
     /// If any one of the lock acquisition fails, the [`Option`] is 
     /// returned as a [None] value
     /// 
-    pub(crate) fn get_all_component_locks_mut<C: Component + 'static>(&self) -> Option<Vec<OwnedRwLockWriteGuard<C>>> {
+    pub(crate) fn get_all_component_locks_mut<C: Component + 'static>(&self) -> Option<Vec<(Entity, OwnedRwLockWriteGuard<C>)>> {
+        assert!(
+            self.check_component_registered::<C>(),
+            "Component not registered for use: {}",
+             C::get_name()
+        );
+
         self.get_manager::<C>().borrow_all_components_mut()
     }
 

@@ -99,7 +99,7 @@ where
                 entity_id,
                 Comp::get_name()
             );
-            log::error!("{err_str}");
+            log::warn!("{err_str}");
             return;
         }
 
@@ -255,15 +255,15 @@ where
     /// If any one of the lock acquisitions fail, we return None inside
     /// the option
     /// 
-    pub fn borrow_all_components(&self) -> Option<Vec<OwnedRwLockReadGuard<Comp>>> {
+    pub fn borrow_all_components(&self) -> Option<Vec<(Entity, OwnedRwLockReadGuard<Comp>)>> {
         let mut vec = vec![];
-        for component in &self.components {
+        for (index, component) in self.components.iter().enumerate() {
             let value = match component.clone().try_read_owned() {
                 Ok(x) => x,
                 Err(_) => return None,
             };
 
-            vec.push(value);
+            vec.push((self.entity_ids[index], value));
         }
         Some(vec)
     }
@@ -279,15 +279,16 @@ where
     /// If any one of the lock acquisitions fail, we return None inside
     /// the option
     /// 
-    pub fn borrow_all_components_mut(&self) -> Option<Vec<OwnedRwLockWriteGuard<Comp>>> {
+    pub fn borrow_all_components_mut(&self) -> Option<Vec<(Entity, OwnedRwLockWriteGuard<Comp>)>> {
         let mut vec = vec![];
-        for component in &self.components {
+        for (index, component) in self.components.iter().enumerate() {
             let value = match component.clone().try_write_owned() {
                 Ok(x) => x,
                 Err(_) => return None,
             };
 
-            vec.push(value);
+            vec.push((self.entity_ids[index], value));
+            // vec.push(value);
         }
         Some(vec)
     }

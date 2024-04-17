@@ -6,17 +6,21 @@ Another additional goal of this project is to actually explore how this architec
 
 # PRIMARY
 
-[] Write and rewrite Docs for Literally everything
 
-    - There have been too many architectural changes since the last proper documentation update.
-
-[] Cleanup codebase from un-needed comments
 
 [] Prepare README.md
+    
+    [] Prepare a diagram for Event and Command Buffer behavior
+
+    [] Prepare a diagram to explain schedules and schedule holder
+
+    [] Prepare a diagram to give an overview of scheduling logic used by the parallel scheduler
 
 [] Find a solution for multiple world problem
+    
     - Each world has resources, which are shared among scenes, but also
     contains components and systems, which differ across scenes 
+    - With this context, we'll first need to define what multiple world really means, only after which we can assess whether we really need it or not
 
 
 [] Rigorously test the parallel scheduling system

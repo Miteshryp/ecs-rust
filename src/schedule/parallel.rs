@@ -12,7 +12,7 @@ use crate::{
     world::unsafe_world::UnsafeWorldContainer,
 };
 
-use super::{ScheduleHolderFrequency, Schedulable, Schedule, DAG::DependencyGraph};
+use super::{schedulable::IntoSchedulable, Schedulable, Schedule, ScheduleHolderFrequency, DAG::DependencyGraph};
 
 pub struct ParallelSchedule {
     /// A structure storing the systems inserted into a schedule
@@ -31,6 +31,10 @@ impl ParallelSchedule {
             dependency_graph: DependencyGraph::new(),
         }
     }
+
+    // pub fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>) {
+    //     self.dependency_graph.add_boxed_system(func.into_schedulable());
+    // }
 }
 
 impl Schedule for ParallelSchedule {
@@ -60,6 +64,10 @@ impl Schedule for ParallelSchedule {
     /// type using the [crate::IntoSchedulable::into_schedulable]
     fn add_boxed(&mut self, item: Box<dyn Schedulable>) {
         self.dependency_graph.add_boxed_system(item);
+    }
+
+    fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>) {
+        self.dependency_graph.add_boxed_system(func.into_schedulable());
     }
 
     fn add_ordered(&mut self, systems: super::DependentSystems) {

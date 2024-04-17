@@ -1,6 +1,8 @@
 use std::{ops::{Deref, DerefMut}};
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
+use crate::entity::Entity;
+
 use super::Component;
 
 
@@ -15,12 +17,14 @@ use super::Component;
 /// immutable access into a component inside a [`system`](crate::System) function.
 /// 
 pub struct ComponentHandle<C: Component + 'static> {
-    inner: OwnedRwLockReadGuard<C>
+    inner: OwnedRwLockReadGuard<C>,
+    entity_id: Entity,
 }
 
 impl<C: Component + 'static> ComponentHandle<C> {
-    pub fn new(lock: OwnedRwLockReadGuard<C>) -> Self {
+    pub fn new(lock: OwnedRwLockReadGuard<C>, entity_id: Entity) -> Self {
         ComponentHandle {
+            entity_id,
             inner: lock
         }
     }
@@ -46,11 +50,13 @@ impl<C: Component + 'static> Deref for ComponentHandle<C> {
 /// 
 pub struct MutComponentHandle<C: Component + 'static> {
     inner: OwnedRwLockWriteGuard<C>,
+    entity_id: Entity,
 }
 impl<C: Component + 'static> MutComponentHandle<C> {
-    pub fn new(lock: OwnedRwLockWriteGuard<C>) -> Self {
+    pub fn new(lock: OwnedRwLockWriteGuard<C>, entity_id: Entity) -> Self {
         MutComponentHandle {
-            inner: lock
+            inner: lock,
+            entity_id
         }
     }
 }
@@ -79,10 +85,12 @@ impl<C: Component + 'static> DerefMut for MutComponentHandle<C> {
 /// This type implements the [Deref] trait to allow us to 
 /// directly access the underlying component.
 /// 
-pub struct CrossComponentHandle<'a,C: Component + 'static> {
+pub struct ComponentRefHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a OwnedRwLockReadGuard<C>,
+    pub(crate) entity_id: Entity,
+    // @TODO: Add the entity_id access here
 }
-impl<C: Component + 'static> Deref for CrossComponentHandle<'_, C> {
+impl<C: Component + 'static> Deref for ComponentRefHandle<'_, C> {
     type Target = C;
     
     fn deref(&self) -> &Self::Target {
@@ -104,17 +112,19 @@ impl<C: Component + 'static> Deref for CrossComponentHandle<'_, C> {
 /// allow us to directly access and modify the underlying 
 /// component.
 /// 
-pub struct CrossMutComponentHandle<'a,C: Component + 'static> {
+pub struct MutComponentRefHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a mut OwnedRwLockWriteGuard<C>,
+    pub(crate) entity_id: Entity,
+    // @TODO: Add the entity_id access here
 }
-impl<C: Component + 'static> Deref for CrossMutComponentHandle<'_, C> {
+impl<C: Component + 'static> Deref for MutComponentRefHandle<'_, C> {
     type Target = C;
     
     fn deref(&self) -> &Self::Target {
         self.inner.deref()
     }
 }
-impl<C: Component + 'static> DerefMut for CrossMutComponentHandle<'_, C> {
+impl<C: Component + 'static> DerefMut for MutComponentRefHandle<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner.deref_mut()
     }

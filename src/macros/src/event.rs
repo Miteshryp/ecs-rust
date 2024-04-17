@@ -8,6 +8,7 @@ pub(crate) fn derive_event(mut ast: syn::DeriveInput) -> proc_macro::TokenStream
     let type_name = ast.ident;
 
     let generate = quote! {
+
         #base_impl
         impl Event for #type_name {
             fn event_type_id(&self) -> std::any::TypeId {

@@ -13,7 +13,7 @@ use crate::{
     world::unsafe_world::UnsafeWorldContainer,
 };
 
-use self::schedulable::{DependentSystems, Schedulable};
+use self::schedulable::{DependentSystems, IntoSchedulable, Schedulable};
 
 
 pub enum ScheduleHolderFrequency {
@@ -35,6 +35,9 @@ impl Copy for ScheduleHolderFrequency {}
 
 pub trait Schedule {
     fn run_schedule(&mut self, world: &UnsafeWorldContainer);
+
+    // fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>);
+    fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>) where Self: Sized;
     fn add_boxed(&mut self, item: Box<dyn Schedulable>);
     fn add_ordered(&mut self, systems: DependentSystems);
 }

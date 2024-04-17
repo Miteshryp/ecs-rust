@@ -37,6 +37,16 @@ impl<E: Event + 'static> EventReader<E> {
             .map(|e| e.as_any().downcast_ref::<E>().unwrap())
             .collect()
     }
+
+    pub fn read_owned_events(&self) -> Vec<&E> {
+        let vec = unsafe { &*self.reader };
+
+        vec.iter()
+            .map(|e| {
+                e.as_any().downcast_ref::<E>().unwrap().to_owned()
+            })
+            .collect()
+    }
 }
 
 impl<E: Event + 'static> SystemParam for EventReader<E> {

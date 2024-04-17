@@ -83,7 +83,7 @@ macro_rules! query_systems {
                         *entity,
                         $(
                             match world.get_component_ref_lock::<$param>(*entity) {
-                                Some(x) => ComponentHandle::new(x),
+                                Some(x) => ComponentHandle::new(x, *entity),
 
                                 // If the component fetch fails, this means that either
                                 // component is unavailable, or it has been deleted.
@@ -121,7 +121,7 @@ macro_rules! query_systems {
                         *entity,
                         $(
                             match world.get_component_ref_mut_lock::<$param>(*entity) {
-                                Some(x) => MutComponentHandle::new(x),
+                                Some(x) => MutComponentHandle::new(x, *entity),
 
                                 // If the component fetch fails, this means that either
                                 // component is unavailable, or it has been deleted.
