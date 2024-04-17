@@ -6,7 +6,7 @@ use std::{
     any::TypeId, slice::{Iter, IterMut}, vec::IntoIter
 };
 
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 use ecs_macros::SystemParam;
 
 use crate::world::World;

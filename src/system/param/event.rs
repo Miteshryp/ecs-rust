@@ -4,7 +4,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 use ecs_macros::SystemParam;
 
 use crate::{events::Event, world::World};

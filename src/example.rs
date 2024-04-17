@@ -186,7 +186,4 @@ fn main() {
     app.add_to_holder_index(update, schedule);
 
     app.start();
-    // loop {
-    //     // app.update();
-    // }
 }

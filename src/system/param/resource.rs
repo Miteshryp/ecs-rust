@@ -2,7 +2,7 @@ use ecs_macros::{ECSBase, Resource, SystemParam};
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
 use super::{InitError, SystemParam};
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 use crate::{resource::Resource, world::World};
 use std::{
     any::Any,

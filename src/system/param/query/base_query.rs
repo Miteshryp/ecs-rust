@@ -6,7 +6,7 @@ use std::{
     vec::IntoIter,
 };
 
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 use ecs_macros::{ECSBase, SystemParam};
 
 use crate::{

@@ -3,13 +3,13 @@ use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
 use crate::{
     component::{
-        handles::{ComponentRefHandle, MutComponentHandle, MutComponentRefHandle},
+        handles::{ComponentRefHandle, MutComponentRefHandle},
         Component,
     },
     entity::Entity,
     system::param::SystemParam,
     world::World,
-    ECSBase,
+    ecs_base::ECSBase
 };
 
 use super::InitError;

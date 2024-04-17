@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use crate::{resource::Resource, world::World};
 use crate::system::param::SystemParam;
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 use ecs_macros::Resource;
 use std::any::Any;
 

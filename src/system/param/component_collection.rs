@@ -1,14 +1,10 @@
-use std::ops::{Deref, DerefMut};
-use std::path::Iter;
-
 use ecs_macros::SystemParam;
-use tokio::sync::OwnedRwLockWriteGuard;
 
 use crate::component::handles::{ComponentHandle, MutComponentHandle};
 use crate::component::Component;
 use crate::system::param::{InitError, SystemParam};
 use crate::world::World;
-use crate::ECSBase;
+use crate::ecs_base::ECSBase;
 
 ///
 /// ### Description
