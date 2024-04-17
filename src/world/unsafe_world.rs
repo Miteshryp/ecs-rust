@@ -1,9 +1,9 @@
 use std::{
-    cell::{Cell, UnsafeCell},
+    cell::Cell,
     sync::mpsc::Sender,
 };
 
-use super::{command_type::CommandFunction, World};
+use crate::world::World;
 
 /// ### Description
 /// Structure for storing unsafe world reference in ECS App
@@ -31,7 +31,7 @@ use super::{command_type::CommandFunction, World};
 /// For more on component specific safety, see [ComponentManager]
 ///
 ///
-pub(crate) struct UnsafeWorldContainer {
+pub struct UnsafeWorldContainer {
     pub(crate) world: Cell<World>,
 }
 
@@ -59,5 +59,3 @@ impl UnsafeWorldContainer {
         unsafe { &mut *(self.world.as_ptr()) }
     }
 }
-
-pub type WorldArg = World;

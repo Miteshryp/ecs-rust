@@ -1,12 +1,8 @@
-use std::{any::TypeId};
-use hashbrown::HashMap;
-
-use crate::{
-    component::{component_manager::ComponentManager, Component},
-    world::World,
-};
 use super::Entity;
 
+///
+/// ### Description
+/// 
 /// EntityManager is a struct which is responsible for managing
 /// entity related operations such as:
 ///     1. Managing components belonging to an entity.

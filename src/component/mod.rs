@@ -2,7 +2,6 @@ pub mod component_manager;
 pub mod handles;
 
 use crate::ecs_base::ECSBase;
-use ecs_macros::ECSBase;
 
 /// ### Description
 /// 

@@ -210,7 +210,7 @@ impl<C: Component + 'static> CrossComponentCollectionMut<C> {
     ///
     pub fn execute_handler<Func: FnMut(MutComponentRefHandle<C>, MutComponentRefHandle<C>)>(
         &mut self,
-        mut func: Func,
+        func: Func,
     ) {
         Self::execute_handler_on_component_arr(&mut self.component_vec, func, |_| true);
         // for i in 0..self.component_vec.len() {
@@ -237,8 +237,8 @@ impl<C: Component + 'static> CrossComponentCollectionMut<C> {
     // @TODO: Document
     pub fn execute_filtered_handler<Func, FilterFunc>(
         &mut self,
-        mut execution_func: Func,
-        mut filter_func: FilterFunc,
+        execution_func: Func,
+        filter_func: FilterFunc,
     ) where
         Func: FnMut(MutComponentRefHandle<C>, MutComponentRefHandle<C>),
         FilterFunc: FnMut(MutComponentRefHandle<C>) -> bool,

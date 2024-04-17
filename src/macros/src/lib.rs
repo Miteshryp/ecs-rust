@@ -1,15 +1,14 @@
 extern crate proc_macro;
 
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{self, parse_macro_input, token::Token, Ident};
+use syn::{self, parse_macro_input};
 use utils::AllTuples;
 
 mod base;
 mod component;
 mod resource;
 mod event;
-mod system;
 mod utils;
 mod system_param;
 
@@ -52,7 +51,7 @@ pub fn resource_derive(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(Event)]
 pub fn event_derive(input: TokenStream) -> TokenStream {
-    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
     event::derive_event(ast)
 }
 
@@ -64,7 +63,7 @@ pub fn base_derive(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(SystemParam)]
 pub fn system_param_derive(input: TokenStream) -> TokenStream {
-    let mut ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
     system_param::derive_system_param(ast).into()
 }
 

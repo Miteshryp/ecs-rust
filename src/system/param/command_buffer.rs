@@ -2,7 +2,6 @@ use std::sync::mpsc::Sender;
 
 use crate::ecs_base::ECSBase;
 use crate::system::SystemParam;
-use crate::world::command_type::{CommandFunction, CommandType};
 use crate::world::World;
 use ecs_macros::SystemParam;
 
@@ -41,6 +40,6 @@ impl CommandBufferWriter {
     //     self.writer_channel.send(func);
     // }
     pub fn add_command<Func: FnMut(&mut World) + 'static>(&self, func: Func) {
-        self.writer_channel.send(Box::new(func));
+        let _ = self.writer_channel.send(Box::new(func));
     }
 }

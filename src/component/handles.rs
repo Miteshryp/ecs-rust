@@ -1,4 +1,4 @@
-use std::{ops::{Deref, DerefMut}};
+use std::ops::{Deref, DerefMut};
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
 use crate::entity::Entity;
@@ -16,9 +16,10 @@ use super::Component;
 /// This handle is an interface to be used by the user to gain
 /// immutable access into a component inside a [`system`](crate::System) function.
 /// 
+#[allow(dead_code)]
 pub struct ComponentHandle<C: Component + 'static> {
-    inner: OwnedRwLockReadGuard<C>,
-    entity_id: Entity,
+    pub(crate) inner: OwnedRwLockReadGuard<C>,
+    pub entity_id: Entity,
 }
 
 impl<C: Component + 'static> ComponentHandle<C> {
@@ -49,8 +50,8 @@ impl<C: Component + 'static> Deref for ComponentHandle<C> {
 /// to mutate the world components in systems
 /// 
 pub struct MutComponentHandle<C: Component + 'static> {
-    inner: OwnedRwLockWriteGuard<C>,
-    entity_id: Entity,
+    pub(crate) inner: OwnedRwLockWriteGuard<C>,
+    pub entity_id: Entity,
 }
 impl<C: Component + 'static> MutComponentHandle<C> {
     pub fn new(lock: OwnedRwLockWriteGuard<C>, entity_id: Entity) -> Self {
@@ -87,8 +88,7 @@ impl<C: Component + 'static> DerefMut for MutComponentHandle<C> {
 /// 
 pub struct ComponentRefHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a OwnedRwLockReadGuard<C>,
-    pub(crate) entity_id: Entity,
-    // @TODO: Add the entity_id access here
+    pub entity_id: Entity,
 }
 impl<C: Component + 'static> Deref for ComponentRefHandle<'_, C> {
     type Target = C;
@@ -114,7 +114,7 @@ impl<C: Component + 'static> Deref for ComponentRefHandle<'_, C> {
 /// 
 pub struct MutComponentRefHandle<'a,C: Component + 'static> {
     pub(crate) inner: &'a mut OwnedRwLockWriteGuard<C>,
-    pub(crate) entity_id: Entity,
+    pub entity_id: Entity,
     // @TODO: Add the entity_id access here
 }
 impl<C: Component + 'static> Deref for MutComponentRefHandle<'_, C> {

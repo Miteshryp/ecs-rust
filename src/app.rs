@@ -1,11 +1,9 @@
-use std::{
-    sync::mpsc::{channel, Receiver},
-};
+use std::sync::mpsc::{channel, Receiver};
 
 use crate::{
     component::Component,
     schedule::{
-        holder::ScheduleHolder, parallel::ParallelSchedule, ScheduleHolderFrequency, Schedule
+        holder::ScheduleHolder, ScheduleHolderFrequency, Schedule
     },
     world::{unsafe_world::UnsafeWorldContainer, World},
 };

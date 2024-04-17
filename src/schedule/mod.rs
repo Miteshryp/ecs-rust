@@ -1,17 +1,10 @@
-pub mod DAG;
+pub mod graph;
 pub mod holder;
 pub mod parallel;
 pub mod schedulable;
 
-use std::error::Error;
 
-use crate::{
-    system::{
-        dependency::{SystemDependencies, SystemMetadata},
-        param::InitError,
-    },
-    world::unsafe_world::UnsafeWorldContainer,
-};
+use crate::world::unsafe_world::UnsafeWorldContainer;
 
 use self::schedulable::{DependentSystems, IntoSchedulable, Schedulable};
 
@@ -36,9 +29,13 @@ impl Copy for ScheduleHolderFrequency {}
 pub trait Schedule {
     fn run_schedule(&mut self, world: &UnsafeWorldContainer);
 
-    // fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>);
+    // @TODO: Document
     fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>) where Self: Sized;
+
+    // @TODO: Document
     fn add_boxed(&mut self, item: Box<dyn Schedulable>);
+
+    // @TODO: Document
     fn add_ordered(&mut self, systems: DependentSystems);
 }
 

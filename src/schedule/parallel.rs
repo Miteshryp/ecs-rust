@@ -1,18 +1,4 @@
-use std::{
-    any::TypeId,
-    borrow::BorrowMut,
-    sync::{Arc, Mutex},
-    thread, vec,
-};
-
-use tokio::sync::RwLock;
-
-use crate::{
-    system::{dependency::SystemDependencies, param::SystemParam},
-    world::unsafe_world::UnsafeWorldContainer,
-};
-
-use super::{schedulable::IntoSchedulable, Schedulable, Schedule, ScheduleHolderFrequency, DAG::DependencyGraph};
+use super::{schedulable::IntoSchedulable, Schedulable, Schedule, graph::DependencyGraph};
 
 pub struct ParallelSchedule {
     /// A structure storing the systems inserted into a schedule
@@ -31,10 +17,6 @@ impl ParallelSchedule {
             dependency_graph: DependencyGraph::new(),
         }
     }
-
-    // pub fn add<Marker>(&mut self, func: impl IntoSchedulable<Marker>) {
-    //     self.dependency_graph.add_boxed_system(func.into_schedulable());
-    // }
 }
 
 impl Schedule for ParallelSchedule {
