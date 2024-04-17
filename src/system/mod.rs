@@ -4,18 +4,15 @@ pub mod param;
 
 use std::marker::PhantomData;
 
-use crate::{resource::Resource, world::World};
+use crate::world::World;
 use crate::system::param::SystemParam;
-use crate::ecs_base::ECSBase;
-use ecs_macros::Resource;
-use std::any::Any;
 
 use self::{
     base::{SystemExecutor, SystemExtractor, SystemMarker},
     dependency::{SystemDependencies, SystemMetadata},
-    param::{InitError, ResourceHandle},
+    param::InitError,
 };
-use crate::{schedule::schedulable::Schedulable, world::unsafe_world::UnsafeWorldContainer};
+use crate::schedule::schedulable::Schedulable;
 
 /// ### Description
 ///

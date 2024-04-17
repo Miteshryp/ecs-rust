@@ -1,13 +1,5 @@
-use std::{
-    any::{Any, TypeId},
-    cell::{Ref, RefMut},
-    ops::{Deref, DerefMut},
-    sync::{RwLockReadGuard, RwLockWriteGuard},
-    vec::IntoIter,
-};
+use std::any::TypeId;
 
-use crate::ecs_base::ECSBase;
-use ecs_macros::{ECSBase, SystemParam};
 
 use crate::{
     component::{
@@ -15,10 +7,9 @@ use crate::{
         Component,
     },
     entity::Entity,
-    world::{unsafe_world::UnsafeWorldContainer, World},
+    world::World,
 };
 
-use crate::system::{InitError, SystemParam};
 
 
 

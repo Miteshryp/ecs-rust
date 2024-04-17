@@ -2,12 +2,12 @@ use super::{
     dependency::{SystemDependencies, SystemMetadata},
     param::{InitError, SystemParam},
 };
-use crate::world::{unsafe_world::UnsafeWorldContainer, World};
+use crate::world::World;
 use ecs_macros::implement_tuples;
 use log;
 
 use super::System;
-use crate::schedule::schedulable::{IntoSchedulable, DependentSystems, Schedulable};
+use crate::schedule::schedulable::{IntoSchedulable, DependentSystems};
 
 ///
 /// ### Description
@@ -83,6 +83,7 @@ macro_rules! impl_system_function {
 
         /// Implementation of the [SystemMarker] type on all possible functions
         /// declared in the application
+        #[allow(non_snake_case)]
         impl<Func, $($param: SystemParam + 'static),*> SystemMarker<fn ($($param),*) -> ()> for Func
         where
             Func: Send + Sync + 'static + FnMut($($param),*) -> ()
@@ -167,7 +168,7 @@ macro_rules! impl_system_function {
                 $(
                     // Fetching and removing the system param resource
                     // dependency from the passed dependency.
-                    let mut $param = dependencies.pop_dependency::<$param>();
+                    let $param = dependencies.pop_dependency::<$param>();
                 )*
 
                 call_inner(self, $(*$param),*);

@@ -1,6 +1,6 @@
 use crate::{
     system::{dependency::SystemMetadata, param::InitError},
-    world::{unsafe_world::UnsafeWorldContainer, World},
+    world::World,
 };
 
 /// @SAFETY:
@@ -42,11 +42,11 @@ pub struct DependentSystems {
 }
 
 impl DependentSystems {
-    pub fn queue_to_back<M>(&mut self, mut system: impl IntoSchedulable<M>) {
+    pub fn queue_to_back<M>(&mut self, system: impl IntoSchedulable<M>) {
         self.systems.push(system.into_schedulable());
     }
 
-    pub fn queue_to_front<M>(&mut self, mut system: impl IntoSchedulable<M>) {
+    pub fn queue_to_front<M>(&mut self, system: impl IntoSchedulable<M>) {
         self.systems.insert(0, system.into_schedulable());
     }
 }

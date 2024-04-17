@@ -11,5 +11,5 @@ pub mod resource;
 pub mod system;
 
 pub mod macros {
-    use ecs_macros::*;
+    pub use ecs_macros::*;
 }

@@ -1,6 +1,6 @@
 use crate::world::unsafe_world::UnsafeWorldContainer;
 
-use super::{ScheduleHolderFrequency, Schedule, schedulable::{Schedulable}};
+use super::{ScheduleHolderFrequency, Schedule};
 
 /// @SOLVED: Maybe to compensate the Schedule holding Schedule issue,
 /// we can implement a parent trait to Schedule which can be implemented
@@ -25,7 +25,7 @@ impl ScheduleHolder {
         self.executions.push(s);
     }
 
-    pub fn run_all(&mut self, world: &UnsafeWorldContainer) {
+    pub(crate) fn run_all(&mut self, world: &UnsafeWorldContainer) {
         if self.ticks == 0 {
             for schedule in &mut self.executions {
                 schedule.run_schedule(world);

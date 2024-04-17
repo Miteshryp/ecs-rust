@@ -1,7 +1,6 @@
-use std::borrow::BorrowMut;
 
 use crate::{system::dependency::SystemMetadata, world::unsafe_world::UnsafeWorldContainer};
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
 use rayon::prelude::*;
 
 use super::{DependentSystems, Schedulable};
@@ -47,12 +46,12 @@ impl DependencyGraph {
     // @DONE: Find a way to identify position of a created node in the existing graph
     // @SOLN: Try insertion at a level where indegree is zero in a topological sort algo process
 
-    pub fn add_boxed_system(&mut self, mut system: Box<dyn Schedulable>) {
+    pub fn add_boxed_system(&mut self, system: Box<dyn Schedulable>) {
         // 1. Construct the node from the given system
         let graph_node = Self::initialise_system_node(system);
 
         // 2. Add the node to the graph after identifing the dependencies in the graph
-        let mut indegree_vec: Vec<i32> = self.indegrees.clone().iter_mut().map(|i| *i as i32).collect();
+        let indegree_vec: Vec<i32> = self.indegrees.clone().iter_mut().map(|i| *i as i32).collect();
         let _ = self.check_indegree_and_insert(graph_node, indegree_vec);
     }
 
@@ -196,7 +195,7 @@ impl DependencyGraph {
             // 1. Construct a topologically sorted graph, and create layers where each
             // layer consists of nodes with indegree of zero
 
-            let mut top_nodes: Vec<usize> = sorted_vec
+            let top_nodes: Vec<usize> = sorted_vec
                 .iter_mut()
                 .enumerate()
                 .filter_map(|(index, item)| {
@@ -224,7 +223,7 @@ impl DependencyGraph {
             let world_ref = world.get_world();
 
             top_nodes_vec.into_par_iter().for_each(|item| {
-                if let Some(res) = item.system.initialise_dependencies(world_ref) {
+                if let Some(_) = item.system.initialise_dependencies(world_ref) {
                     // Initialisation failed. Resource does not exist. Do not run the system
                     return;
                 }

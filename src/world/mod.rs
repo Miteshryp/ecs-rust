@@ -4,13 +4,13 @@ pub(crate) mod unsafe_world;
 use std::{
     any::TypeId,
     sync::{
-        mpsc::{channel, Receiver, Sender},
+        mpsc::Sender,
         Arc,
     },
 };
 
 use tokio::sync::{
-    OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock,
 };
 
 use hashbrown::HashMap;
@@ -24,11 +24,11 @@ use crate::{
     events::{event_manager::EventManager, Event},
     resource::{Resource, ResourceId},
     system::param::{
-        EventReader, EventWriter, MutResourceHandle, ResourceFetchResult, base_query::SystemQuery,
+        EventReader, EventWriter, ResourceFetchResult, base_query::SystemQuery,
     },
 };
 
-use self::command_type::CommandFunction;
+
 
 /// ### World struct
 ///
@@ -54,6 +54,7 @@ use self::command_type::CommandFunction;
 ///
 ///
 ///
+#[allow(dead_code)]
 pub struct World {
     active: bool,
     cleanup: bool,
@@ -143,7 +144,6 @@ impl World {
 impl World {
     // pub fn new(command_sender: Sender<CommandFunction>) -> Self {
     pub fn new(command_sender: Sender<Box<dyn FnMut(&mut World) -> ()>>) -> Self {
-        let (tx, rx) = channel::<CommandFunction>();
         Self {
             active: false,
             cleanup: false,

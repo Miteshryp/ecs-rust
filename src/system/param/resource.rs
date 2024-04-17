@@ -1,14 +1,12 @@
-use ecs_macros::{ECSBase, Resource, SystemParam};
+use ecs_macros::SystemParam;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard};
 
 use super::{InitError, SystemParam};
 use crate::ecs_base::ECSBase;
 use crate::{resource::Resource, world::World};
 use std::{
-    any::Any,
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::{RwLockReadGuard, RwLockWriteGuard},
 };
 
 pub enum ResourceFetchResult {

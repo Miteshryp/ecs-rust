@@ -1,7 +1,5 @@
 use super::param::SystemParam;
-use std::{
-    any::{Any, TypeId},
-};
+use std::any::{Any, TypeId};
 
 
 
@@ -163,7 +161,7 @@ impl SystemDependencies {
     /// Fetching a dependency which does not exist in the function will result in a crash
     pub fn pop_dependency<S: SystemParam + 'static>(&mut self) -> Box<S> {
         match self.dependencies.remove(&TypeId::of::<S>()) {
-            Some(mut x) => {
+            Some(x) => {
                 // Downcasting to appropriate type of box
                 match x.downcast::<S>() {
                     Ok(boxed) => boxed,
